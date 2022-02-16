@@ -4,10 +4,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/golang/freetype/truetype"
+	"github.com/arran4/golang-wordwrap"
+	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/colornames"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/gofont/goregular"
 	"image"
 	"image/png"
 	"io"
@@ -32,24 +31,28 @@ func init() {
 func main() {
 	flag.Parse()
 	i := image.NewRGBA(image.Rect(0, 0, *width, *height))
-	gr, err := OpenFont(*fontname)
+	gr, err := util.OpenFont(*fontname)
 	if err != nil {
 		log.Panicf("Error opening font %s: %s", *fontname, err)
 	}
-	grf := GetFontFace(*fontsize, *dpi, gr)
-	grfd := &font.Drawer{
-		Dst:  i,
-		Src:  image.NewUniform(colornames.Blue),
-		Face: grf,
-	}
+	grf := util.GetFontFace(*fontsize, *dpi, gr)
 	text, err := GetText(*textsource)
 	if err != nil {
 		log.Panicf("Text fetch errror: %s", err)
 	}
-	ttb, _ := grfd.BoundString(text)
-	grfd.Dot = grfd.Dot.Sub(ttb.Min)
-	grfd.DrawString(text)
-
+	boxer := wordwrap.NewSimpleBoxer()
+	n := 0
+	rt := []rune(text)
+	for {
+		b, i, err := boxer.BoxNextWord(grf, image.NewUniform(colornames.Black), rt[n:])
+		if err != nil {
+			log.Panicf("Error with boxing text: %s", err)
+		}
+		if b == nil {
+			break
+		}
+		n += i
+	}
 	outfn := "out.png"
 	if err := SaveFile(i, outfn); err != nil {
 		log.Panicf("Error with saving file: %s", err)
@@ -73,33 +76,6 @@ func GetText(fn string) (string, error) {
 		return "", nil
 	}
 	return string(b), nil
-}
-
-func GetFontFace(fontsize float64, dpi float64, gr *truetype.Font) font.Face {
-	return truetype.NewFace(gr, &truetype.Options{
-		Size: fontsize,
-		DPI:  dpi,
-	})
-}
-
-func OpenFont(name string) (*truetype.Font, error) {
-	b, err := FontByName(name)
-	if err != nil {
-		return nil, fmt.Errorf("font open error: %w", err)
-	}
-	gr, err := truetype.Parse(b)
-	if err != nil {
-		return nil, fmt.Errorf("font load error: %w", err)
-	}
-	return gr, nil
-}
-
-func FontByName(name string) ([]byte, error) {
-	switch name {
-	case "goregular":
-		return goregular.TTF, nil
-	}
-	return nil, errors.New("font not found")
 }
 
 func SaveFile(i *image.RGBA, fn string) error {
