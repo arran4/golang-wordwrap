@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 	"image"
 	"log"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 
 type Line interface {
 	Size() image.Rectangle
+	DrawLine(i Image) error
 }
 
 type Liner func(b Boxer, pos int, feed []rune) (Line, int, error)
@@ -18,6 +20,28 @@ type Liner func(b Boxer, pos int, feed []rune) (Line, int, error)
 type SimpleLine struct {
 	Boxes []Box
 	size  image.Rectangle
+	midY  fixed.Int26_6
+}
+
+func (sl *SimpleLine) DrawLine(i Image) error {
+	bounds := i.Bounds()
+	pmin := bounds.Min
+	pmax := bounds.Min
+	pmax.Y = bounds.Max.Y
+	for _, b := range sl.Boxes {
+		switch b := b.(type) {
+		case *SimpleBox:
+			ir := b.ImageRect()
+			pmax.X += ir.Dx()
+			subImage := i.SubImage(image.Rectangle{
+				Min: pmin,
+				Max: pmax,
+			}).(*image.RGBA)
+			b.DrawBox(subImage, sl.midY)
+			pmin.X += ir.Dx()
+		}
+	}
+	return nil
 }
 
 func SimpleLiner(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle) (Line, int, error) {
@@ -56,6 +80,10 @@ func SimpleLiner(boxer Boxer, fce font.Face, feed []rune, container image.Rectan
 			}
 			if ir.Max.Y > r.size.Max.Y {
 				r.size.Max.Y = ir.Max.Y
+			}
+			bMidY := -b.FontRect().Min.Y
+			if r.midY < bMidY {
+				r.midY = bMidY
 			}
 			n += i
 			r.Boxes = append(r.Boxes, b)

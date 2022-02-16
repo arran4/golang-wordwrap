@@ -41,15 +41,22 @@ func main() {
 	}
 	n := 0
 	rt := []rune(text)
+	p := i.Rect.Min
 	for {
-		l, i, err := wordwrap.SimpleLiner(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect)
+		l, ni, err := wordwrap.SimpleLiner(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect)
 		if err != nil {
 			log.Panicf("Error with boxing text: %s", err)
 		}
 		if l == nil {
 			break
 		}
-		n += i
+		s := l.Size()
+		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
+		if err := l.DrawLine(rgba); err != nil {
+			log.Panicf("Error with drawing text: %s", err)
+		}
+		p = p.Add(s.Max)
+		n += ni
 	}
 	outfn := "out.png"
 	if err := SaveFile(i, outfn); err != nil {

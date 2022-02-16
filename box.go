@@ -12,6 +12,7 @@ import (
 type Box interface {
 	ImageRect() image.Rectangle
 	Image() image.Image
+	FontRect() fixed.Rectangle26_6
 	Whitespace() bool
 }
 
@@ -118,6 +119,10 @@ type SimpleBox struct {
 	drawer   *font.Drawer
 }
 
+func (sb *SimpleBox) FontRect() fixed.Rectangle26_6 {
+	return sb.Size
+}
+
 func (sb *SimpleBox) Whitespace() bool {
 	return sb.Contents == "" || unicode.IsSpace(rune(sb.Contents[0]))
 }
@@ -146,7 +151,21 @@ func (sb *SimpleBox) ImageRect() image.Rectangle {
 	}
 }
 
+func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
+	sb.drawer.Dst = i
+	b := i.Bounds()
+	sb.drawer.Dot = fixed.Point26_6{
+		X: fixed.I(b.Min.X),
+		Y: fixed.I(b.Min.Y) + y,
+	}
+	sb.drawer.DrawString(sb.Contents)
+}
+
 type LineBreakBox struct{}
+
+func (sb *LineBreakBox) FontRect() fixed.Rectangle26_6 {
+	return fixed.Rectangle26_6{}
+}
 
 func (sb *LineBreakBox) Whitespace() bool {
 	return true
