@@ -109,7 +109,7 @@ func TestSimpleLiner(t *testing.T) {
 					t.Errorf("SimpleLiner() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-				gotWords := []string{}
+				var gotWords []string
 				switch l := gotL.(type) {
 				case *SimpleLine:
 					for _, b := range l.Boxes {
@@ -136,7 +136,7 @@ func TestSimpleLiner(t *testing.T) {
 	}
 }
 
-func FixedWordWidthBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error) {
+func FixedWordWidthBoxer(_ font.Face, _ image.Image, text []rune) (Box, int, error) {
 	n, rs, rmode := SimpleBoxerGrab(text)
 	switch rmode {
 	case RNIL:
