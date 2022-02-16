@@ -22,11 +22,13 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 		text  []rune
 	}
 	tests := []struct {
-		name          string
-		args          args
-		wantBoxString string
-		wantN         int
-		wantErr       error
+		name             string
+		args             args
+		wantBoxString    string
+		wantSimpleBox    bool
+		wantLineBreakBox bool
+		wantN            int
+		wantErr          error
 	}{
 		{
 			name: "One word",
@@ -78,19 +80,67 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			wantBoxString: "    ",
 			wantN:         len("    "),
 		},
+		{
+			name: "Line break CRLF breaks words",
+			args: args{
+				fce:   grf,
+				color: image.NewUniform(colornames.Black),
+				text:  []rune("words\r\nhello"),
+			},
+			wantBoxString: "words",
+			wantN:         len("words"),
+		},
+		{
+			name: "Line break LF breaks words",
+			args: args{
+				fce:   grf,
+				color: image.NewUniform(colornames.Black),
+				text:  []rune("words\nhello"),
+			},
+			wantBoxString: "words",
+			wantN:         len("words"),
+		},
+		{
+			name: "Line break CRLF breaks spaces",
+			args: args{
+				fce:   grf,
+				color: image.NewUniform(colornames.Black),
+				text:  []rune("    \r\nhello"),
+			},
+			wantBoxString: "    ",
+			wantN:         len("    "),
+		},
+		{
+			name: "Line break LF breaks spaces",
+			args: args{
+				fce:   grf,
+				color: image.NewUniform(colornames.Black),
+				text:  []rune("    \nhello"),
+			},
+			wantBoxString: "    ",
+			wantN:         len("    "),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			si := SimpleBoxer{}
 			b, n, err := si.BoxNextWord(tt.args.fce, tt.args.color, tt.args.text)
-			sb, ok := b.(*SimpleBox)
-			if ok {
-				if !reflect.DeepEqual(sb.Contents, tt.wantBoxString) {
-					t.Errorf("BoxNextWord()[0].Contents b = %v, wantBoxString %v", sb.Contents, tt.wantBoxString)
+			if tt.wantSimpleBox {
+				sb, ok := b.(*SimpleBox)
+				if ok {
+					if !reflect.DeepEqual(sb.Contents, tt.wantBoxString) {
+						t.Errorf("BoxNextWord()[0].Contents b = %v, wantBoxString %v", sb.Contents, tt.wantBoxString)
+					}
+				} else {
+					if len(tt.wantBoxString) > 0 {
+						t.Errorf("BoxNextWord()[0].Contents b = %v, wantBoxString %v", b, tt.wantBoxString)
+					}
 				}
-			} else {
-				if len(tt.wantBoxString) > 0 {
-					t.Errorf("BoxNextWord()[0].Contents b = %v, wantBoxString %v", b, tt.wantBoxString)
+			}
+			if tt.wantLineBreakBox {
+				_, ok := b.(*LineBreakBox)
+				if !ok {
+					t.Errorf("BoxNextWord()[0] b = %v, wanted line break", b)
 				}
 			}
 			if n != tt.wantN {
