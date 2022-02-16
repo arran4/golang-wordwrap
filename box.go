@@ -2,6 +2,7 @@ package wordwrap
 
 import (
 	"errors"
+	"fmt"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
@@ -11,17 +12,10 @@ import (
 type Box interface {
 	ImageRect() image.Rectangle
 	Image() image.Image
+	Whitespace() bool
 }
 
-type SimpleBoxer struct{}
-
-type Boxer interface {
-	BoxNextWord(fce font.Face, color image.Image, text []rune) (Box, int, error)
-}
-
-func NewSimpleBoxer() Boxer {
-	return &SimpleBoxer{}
-}
+type Boxer func(fce font.Face, color image.Image, text []rune) (Box, int, error)
 
 func IsCR(r rune) bool {
 	return r == '\r'
@@ -31,46 +25,14 @@ func IsLF(r rune) bool {
 	return r == '\n'
 }
 
-func (SimpleBoxer) BoxNextWord(fce font.Face, color image.Image, text []rune) (Box, int, error) {
-	n := 0
-	rs := make([]rune, 0, len(text))
-	const (
-		RSimpleBox = iota
-		RCRLF
-	)
-	rmode := RSimpleBox
-	var mode func(rune) bool
-	for _, r := range text {
-		if mode == nil {
-			if !unicode.IsPrint(r) {
-				continue
-			}
-			if IsCR(r) {
-				mode = Once(IsLF)
-				n++
-				continue
-			} else if IsCR(r) {
-				rmode = RCRLF
-				n++
-				break
-			} else if IsSpaceButNotCRLF(r) {
-				mode = IsSpaceButNotCRLF
-			} else {
-				mode = func(r rune) bool {
-					return !unicode.IsSpace(r)
-				}
-			}
-		}
-		if !mode(r) {
-			break
-		}
-		rs = append(rs, r)
-		n++
-	}
+func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error) {
+	n, rs, rmode := SimpleBoxerGrab(text)
 	switch rmode {
+	case RNIL:
+		return nil, n, nil
 	case RCRLF:
 		return &LineBreakBox{}, n, nil
-	default:
+	case RSimpleBox:
 		t := string(rs)
 		drawer := &font.Drawer{
 			Src:  color,
@@ -85,7 +47,57 @@ func (SimpleBoxer) BoxNextWord(fce font.Face, color image.Image, text []rune) (B
 			Contents: t,
 			Size:     ttb,
 		}, n, nil
+	default:
+		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
 	}
+}
+
+const (
+	RSimpleBox = iota
+	RCRLF
+	RNIL
+)
+
+func SimpleBoxerGrab(text []rune) (int, []rune, int) {
+	n := 0
+	rs := make([]rune, 0, len(text))
+	rmode := RNIL
+	var mode func(rune) bool
+	for _, r := range text {
+		if mode == nil {
+			if IsCR(r) {
+				mode = Once(func(r rune) bool {
+					if IsLF(r) {
+						rmode = RCRLF
+						return true
+					}
+					return false
+				})
+				n++
+				continue
+			} else if IsLF(r) {
+				rmode = RCRLF
+				n++
+				break
+			} else if !unicode.IsPrint(r) {
+				continue
+			} else if IsSpaceButNotCRLF(r) {
+				mode = IsSpaceButNotCRLF
+				rmode = RSimpleBox
+			} else {
+				rmode = RSimpleBox
+				mode = func(r rune) bool {
+					return !unicode.IsSpace(r)
+				}
+			}
+		}
+		if !mode(r) {
+			break
+		}
+		rs = append(rs, r)
+		n++
+	}
+	return n, rs, rmode
 }
 
 func IsSpaceButNotCRLF(r rune) bool {
@@ -104,6 +116,10 @@ type SimpleBox struct {
 	Contents string
 	Size     fixed.Rectangle26_6
 	drawer   *font.Drawer
+}
+
+func (sb *SimpleBox) Whitespace() bool {
+	return sb.Contents == "" || unicode.IsSpace(rune(sb.Contents[0]))
 }
 
 func (sb *SimpleBox) Image() image.Image {
@@ -131,6 +147,10 @@ func (sb *SimpleBox) ImageRect() image.Rectangle {
 }
 
 type LineBreakBox struct{}
+
+func (sb *LineBreakBox) Whitespace() bool {
+	return true
+}
 
 func (sb *LineBreakBox) Image() image.Image {
 	return image.NewRGBA(sb.ImageRect())

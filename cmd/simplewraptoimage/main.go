@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/arran4/golang-wordwrap"
 	"github.com/arran4/golang-wordwrap/util"
-	"golang.org/x/image/colornames"
 	"image"
 	"image/png"
 	"io"
@@ -40,15 +39,14 @@ func main() {
 	if err != nil {
 		log.Panicf("Text fetch errror: %s", err)
 	}
-	boxer := wordwrap.NewSimpleBoxer()
 	n := 0
 	rt := []rune(text)
 	for {
-		b, i, err := boxer.BoxNextWord(grf, image.NewUniform(colornames.Black), rt[n:])
+		l, i, err := wordwrap.SimpleLiner(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect)
 		if err != nil {
 			log.Panicf("Error with boxing text: %s", err)
 		}
-		if b == nil {
+		if l == nil {
 			break
 		}
 		n += i
