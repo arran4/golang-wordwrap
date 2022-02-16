@@ -23,7 +23,7 @@ func TestSimpleLiner(t *testing.T) {
 	tests := []struct {
 		name      string
 		args      args
-		wantLines []WantedLine
+		wantLines []*WantedLine
 		wantErr   bool
 	}{
 		{
@@ -34,7 +34,7 @@ func TestSimpleLiner(t *testing.T) {
 				feed:      []rune("word that fits"),
 				container: image.Rect(0, 0, 6, 6),
 			},
-			wantLines: []WantedLine{
+			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that", " ", "fits"},
 					N:     len("word that fits"),
@@ -50,7 +50,7 @@ func TestSimpleLiner(t *testing.T) {
 				feed:      []rune(""),
 				container: image.Rect(0, 0, 2, 5),
 			},
-			wantLines: []WantedLine{
+			wantLines: []*WantedLine{
 				{
 					words: []string{},
 				},
@@ -65,7 +65,7 @@ func TestSimpleLiner(t *testing.T) {
 				feed:      []rune("word that folder over onto a new line"),
 				container: image.Rect(0, 0, 6, 5),
 			},
-			wantLines: []WantedLine{
+			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that", " ", "folder"},
 					N:     len("word that folder "),
@@ -82,22 +82,19 @@ func TestSimpleLiner(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "folding stops when the space runs out",
+			name: "eod is nil",
 			args: args{
 				boxer:     FixedWordWidthBoxer,
 				fce:       nil,
-				feed:      []rune("word that folder over onto a new line"),
-				container: image.Rect(0, 0, 6, 2),
+				feed:      []rune("word that"),
+				container: image.Rect(0, 0, 6, 5),
 			},
-			wantLines: []WantedLine{
+			wantLines: []*WantedLine{
 				{
-					words: []string{"word", " ", "that", " ", "folder"},
-					N:     len("word that folder "),
+					words: []string{"word", " ", "that"},
+					N:     len("word that"),
 				},
-				{
-					words: []string{"over", " ", "onto", " ", "a"},
-					N:     len("over onto a "),
-				},
+				nil,
 			},
 			wantErr: false,
 		},
@@ -121,6 +118,12 @@ func TestSimpleLiner(t *testing.T) {
 							gotWords = append(gotWords, b.Contents)
 						}
 					}
+				}
+				if wantWords == nil {
+					if gotL != nil {
+						t.Errorf("SimpleLiner() gotN = %v, expected no line", gotL)
+					}
+					return
 				}
 				if !reflect.DeepEqual(gotWords, wantWords.words) {
 					t.Errorf("SimpleLiner() gotWords = %v, wantWords.words %v", gotWords, wantWords.words)
