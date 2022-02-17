@@ -51,11 +51,13 @@ func main() {
 			break
 		}
 		s := l.Size()
+		s.Add(image.Pt(0, p.Y))
+		p.Y += s.Dy()
+		log.Printf("P %v Size: %v", p, s)
 		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
 		if err := l.DrawLine(rgba); err != nil {
 			log.Panicf("Error with drawing text: %s", err)
 		}
-		p = p.Add(s.Max)
 		n += ni
 	}
 	outfn := "out.png"
