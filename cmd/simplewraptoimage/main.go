@@ -51,12 +51,13 @@ func main() {
 			break
 		}
 		s := l.Size()
-		p.Y += s.Dy()
+		p.Y += l.LinePos()
 		log.Printf("P %v Size: %v Dy %v", p, s, s.Dy())
 		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
 		if err := l.DrawLine(rgba); err != nil {
 			log.Panicf("Error with drawing text: %s", err)
 		}
+		p.Y += s.Dy() - l.LinePos()
 		n += ni
 
 	}
