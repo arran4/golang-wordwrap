@@ -12,15 +12,18 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 var (
-	width      = flag.Int("width", 400, "Doc width")
-	height     = flag.Int("height", 600, "Doc height")
-	dpi        = flag.Float64("dpi", 180, "Doc dpi")
-	fontname   = flag.String("font", "goregular", "Text font")
-	fontsize   = flag.Float64("size", 16, "font size")
-	textsource = flag.String("text", "./testdata/sample1.txt", "File in, or - for std input")
+	width       = flag.Int("width", 400, "Doc width")
+	height      = flag.Int("height", 600, "Doc height")
+	dpi         = flag.Float64("dpi", 180, "Doc dpi")
+	fontname    = flag.String("font", "goregular", "Text font")
+	fontsize    = flag.Float64("size", 16, "font size")
+	textsource  = flag.String("text", "-", "File in, or - for std input")
+	outfilename = flag.String("out", "out.png", "file to write to, in some cases this is ignored")
 )
 
 func init() {
@@ -42,7 +45,7 @@ func main() {
 	n := 0
 	rt := []rune(text)
 	p := i.Rect.Min
-	for {
+	for p.Y < i.Rect.Dy() {
 		l, ni, err := wordwrap.SimpleFolder(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect)
 		if err != nil {
 			log.Panicf("Error with boxing text: %s", err)
@@ -57,9 +60,14 @@ func main() {
 		}
 		p.Y += s.Dy()
 		n += ni
-
 	}
-	outfn := "out.png"
+	outfn := *outfilename
+	if *textsource != "-" && outfn == "out.png" {
+		d, fn := filepath.Split(*textsource)
+		if strings.HasSuffix(filepath.Clean(d), "testdata") && strings.HasSuffix(fn, ".txt") {
+			outfn = filepath.Join(strings.TrimSuffix(filepath.Clean(d), "testdata"), "images", strings.TrimSuffix(fn, ".txt")+".png")
+		}
+	}
 	if err := SaveFile(i, outfn); err != nil {
 		log.Panicf("Error with saving file: %s", err)
 	}
