@@ -6,6 +6,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
+	"log"
 	"unicode"
 )
 
@@ -42,11 +43,14 @@ func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error
 		if fce == nil {
 			return nil, 0, errors.New("font face not provided")
 		}
-		ttb, _ := drawer.BoundString(t)
+		ttb, a := drawer.BoundString(t)
+		log.Printf("%v", ttb)
+		log.Printf("%v", a)
 		return &SimpleBox{
 			drawer:   drawer,
 			Contents: t,
-			Size:     ttb,
+			Bounds:   ttb,
+			Advance:  a,
 		}, n, nil
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
@@ -115,12 +119,13 @@ func Once(f func(r rune) bool) func(rune) bool {
 
 type SimpleBox struct {
 	Contents string
-	Size     fixed.Rectangle26_6
+	Bounds   fixed.Rectangle26_6
 	drawer   *font.Drawer
+	Advance  fixed.Int26_6
 }
 
 func (sb *SimpleBox) FontRect() fixed.Rectangle26_6 {
-	return sb.Size
+	return sb.Bounds
 }
 
 func (sb *SimpleBox) Whitespace() bool {
@@ -133,7 +138,7 @@ func (sb *SimpleBox) Image() image.Image {
 		return i
 	}
 	sb.drawer.Dst = i
-	sb.drawer.Dot = sb.drawer.Dot.Sub(sb.Size.Min)
+	sb.drawer.Dot = sb.drawer.Dot.Sub(sb.Bounds.Min)
 	sb.drawer.DrawString(sb.Contents)
 	return i
 }
@@ -141,12 +146,12 @@ func (sb *SimpleBox) Image() image.Image {
 func (sb *SimpleBox) ImageRect() image.Rectangle {
 	return image.Rectangle{
 		Min: image.Point{
-			X: sb.Size.Min.X.Round(),
-			Y: sb.Size.Min.Y.Round(),
+			X: 0,
+			Y: -sb.drawer.Face.Metrics().Ascent.Round(),
 		},
 		Max: image.Point{
-			X: sb.Size.Max.X.Round(),
-			Y: sb.Size.Max.Y.Round(),
+			X: (sb.Advance).Round(),
+			Y: sb.drawer.Face.Metrics().Height.Round() - sb.drawer.Face.Metrics().Ascent.Round(),
 		},
 	}
 }

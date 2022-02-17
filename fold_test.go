@@ -147,7 +147,7 @@ func FixedWordWidthBoxer(_ font.Face, _ image.Image, text []rune) (Box, int, err
 		t := string(rs)
 		return &SimpleBox{
 			Contents: t,
-			Size:     fixed.R(0, 0, 1, 1),
+			Bounds:   fixed.R(0, 0, 1, 1),
 		}, n, nil
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
