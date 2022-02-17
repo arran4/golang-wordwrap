@@ -6,7 +6,6 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
-	"log"
 	"unicode"
 )
 
@@ -44,8 +43,6 @@ func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error
 			return nil, 0, errors.New("font face not provided")
 		}
 		ttb, a := drawer.BoundString(t)
-		log.Printf("%v", ttb)
-		log.Printf("%v", a)
 		return &SimpleBox{
 			drawer:   drawer,
 			Contents: t,

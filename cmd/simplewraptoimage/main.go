@@ -52,7 +52,6 @@ func main() {
 		}
 		s := l.Size()
 		p.Y += l.LinePos()
-		log.Printf("P %v Bounds: %v Dy %v", p, s, s.Dy())
 		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
 		if err := l.DrawLine(rgba); err != nil {
 			log.Panicf("Error with drawing text: %s", err)
