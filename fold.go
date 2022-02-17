@@ -2,6 +2,7 @@ package wordwrap
 
 import (
 	"fmt"
+	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
@@ -18,25 +19,29 @@ type Line interface {
 type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
 
 type SimpleLine struct {
-	Boxes  []Box
-	size   fixed.Rectangle26_6
-	height fixed.Int26_6
+	Boxes   []Box
+	size    fixed.Rectangle26_6
+	height  fixed.Int26_6
+	BoxLine bool
 }
 
 func (sl *SimpleLine) DrawLine(i Image) error {
 	bounds := i.Bounds()
-	pmin := bounds.Min
-	pmax := bounds.Min
-	pmax.Y = bounds.Max.Y
+	r := image.Rectangle{
+		Min: bounds.Min,
+		Max: bounds.Min,
+	}
+	r.Max.Y = bounds.Max.Y
+	var fi = fixed.I(r.Min.X)
 	for _, b := range sl.Boxes {
-		ir := b.AdvanceRect().Ceil()
-		pmax.X += ir
-		subImage := i.SubImage(image.Rectangle{
-			Min: pmin,
-			Max: pmax,
-		}).(*image.RGBA)
+		fi += b.AdvanceRect()
+		r.Max.X = fi.Round()
+		subImage := i.SubImage(r).(*image.RGBA)
 		b.DrawBox(subImage, sl.height)
-		pmin.X += ir
+		r.Min.X = r.Max.X
+	}
+	if sl.BoxLine {
+		util.DrawBox(i, bounds)
 	}
 	return nil
 }

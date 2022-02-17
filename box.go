@@ -125,6 +125,7 @@ type SimpleBox struct {
 	drawer   *font.Drawer
 	Advance  fixed.Int26_6
 	Metrics  font.Metrics
+	BoxBox   bool
 }
 
 func (sb *SimpleBox) AdvanceRect() fixed.Int26_6 {
@@ -151,7 +152,9 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 		Y: fixed.I(b.Min.Y) + y,
 	}
 	sb.drawer.DrawString(sb.Contents)
-	util.DrawBox(i, b)
+	if sb.BoxBox {
+		util.DrawBox(i, b)
+	}
 }
 
 type LineBreakBox struct {
