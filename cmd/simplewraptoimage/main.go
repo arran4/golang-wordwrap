@@ -51,7 +51,8 @@ func main() {
 			break
 		}
 		s := l.Size()
-		s.Add(image.Pt(0, p.Y))
+		s.Add(image.Pt(0, p.Y+l.LineHeight()))
+		s.Max.Y += l.LineHeight()
 		p.Y += s.Dy()
 		log.Printf("P %v Size: %v", p, s)
 		rgba := i.SubImage(s.Add(p)).(*image.RGBA)

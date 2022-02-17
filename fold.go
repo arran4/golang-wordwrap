@@ -13,6 +13,7 @@ import (
 type Line interface {
 	Size() image.Rectangle
 	DrawLine(i Image) error
+	LineHeight() int
 }
 
 type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
@@ -21,6 +22,10 @@ type SimpleLine struct {
 	Boxes []Box
 	size  image.Rectangle
 	midY  fixed.Int26_6
+}
+
+func (sl *SimpleLine) LineHeight() int {
+	return sl.midY.Round()
 }
 
 func (sl *SimpleLine) DrawLine(i Image) error {
