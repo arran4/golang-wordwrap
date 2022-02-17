@@ -3,6 +3,7 @@ package wordwrap
 import (
 	"errors"
 	"fmt"
+	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
@@ -150,6 +151,7 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 		Y: fixed.I(b.Min.Y) + y,
 	}
 	sb.drawer.DrawString(sb.Contents)
+	util.DrawBox(i, b)
 }
 
 type LineBreakBox struct {

@@ -58,6 +58,7 @@ func main() {
 		if err := l.DrawLine(rgba); err != nil {
 			log.Panicf("Error with drawing text: %s", err)
 		}
+		//util.DrawBox(i, s.Add(p))
 		p.Y += s.Dy()
 		n += ni
 	}

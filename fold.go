@@ -18,9 +18,9 @@ type Line interface {
 type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
 
 type SimpleLine struct {
-	Boxes      []Box
-	size       fixed.Rectangle26_6
-	fullAscent fixed.Int26_6
+	Boxes  []Box
+	size   fixed.Rectangle26_6
+	height fixed.Int26_6
 }
 
 func (sl *SimpleLine) DrawLine(i Image) error {
@@ -35,7 +35,7 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 			Min: pmin,
 			Max: pmax,
 		}).(*image.RGBA)
-		b.DrawBox(subImage, sl.fullAscent)
+		b.DrawBox(subImage, sl.height)
 		pmin.X += ir
 	}
 	return nil
@@ -89,9 +89,9 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		if dc > r.size.Max.Y {
 			r.size.Max.Y = dc
 		}
-		fullAscent := m.Height - m.Descent
-		if r.fullAscent < fullAscent {
-			r.fullAscent = fullAscent
+		height := m.Ascent
+		if r.height < height {
+			r.height = height
 		}
 		n += i
 		r.Boxes = append(r.Boxes, b)
