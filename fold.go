@@ -15,7 +15,7 @@ type Line interface {
 	DrawLine(i Image) error
 }
 
-type Liner func(b Boxer, pos int, feed []rune) (Line, int, error)
+type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
 
 type SimpleLine struct {
 	Boxes []Box
@@ -44,7 +44,7 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	return nil
 }
 
-func SimpleLiner(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle) (Line, int, error) {
+func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle) (Line, int, error) {
 	if len(feed) == 0 {
 		return nil, 0, nil
 	}

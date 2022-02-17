@@ -43,7 +43,7 @@ func main() {
 	rt := []rune(text)
 	p := i.Rect.Min
 	for {
-		l, ni, err := wordwrap.SimpleLiner(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect)
+		l, ni, err := wordwrap.SimpleFolder(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect)
 		if err != nil {
 			log.Panicf("Error with boxing text: %s", err)
 		}

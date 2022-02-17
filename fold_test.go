@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestSimpleLiner(t *testing.T) {
+func TestSimpleFolder(t *testing.T) {
 	type args struct {
 		boxer     Boxer
 		fce       font.Face
@@ -103,10 +103,10 @@ func TestSimpleLiner(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			n := 0
 			for _, wantWords := range tt.wantLines {
-				gotL, gotN, err := SimpleLiner(tt.args.boxer, tt.args.fce, tt.args.feed[n:], tt.args.container)
+				gotL, gotN, err := SimpleFolder(tt.args.boxer, tt.args.fce, tt.args.feed[n:], tt.args.container)
 				n += gotN
 				if (err != nil) != tt.wantErr {
-					t.Errorf("SimpleLiner() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("SimpleFolder() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 				var gotWords []string
@@ -121,15 +121,15 @@ func TestSimpleLiner(t *testing.T) {
 				}
 				if wantWords == nil {
 					if gotL != nil {
-						t.Errorf("SimpleLiner() gotN = %v, expected no line", gotL)
+						t.Errorf("SimpleFolder() gotN = %v, expected no line", gotL)
 					}
 					return
 				}
 				if !reflect.DeepEqual(gotWords, wantWords.words) {
-					t.Errorf("SimpleLiner() gotWords = %v, wantWords.words %v", gotWords, wantWords.words)
+					t.Errorf("SimpleFolder() gotWords = %v, wantWords.words %v", gotWords, wantWords.words)
 				}
 				if gotN != wantWords.N {
-					t.Errorf("SimpleLiner() gotN = %v, wantWords.N %v", gotN, wantWords.N)
+					t.Errorf("SimpleFolder() gotN = %v, wantWords.N %v", gotN, wantWords.N)
 				}
 			}
 		})
