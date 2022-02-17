@@ -14,6 +14,7 @@ type Box interface {
 	AdvanceRect() fixed.Int26_6
 	MetricsRect() font.Metrics
 	Whitespace() bool
+	DrawBox(i Image, y fixed.Int26_6)
 }
 
 type Boxer func(fce font.Face, color image.Image, text []rune) (Box, int, error)
@@ -32,7 +33,9 @@ func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error
 	case RNIL:
 		return nil, n, nil
 	case RCRLF:
-		return &LineBreakBox{}, n, nil
+		return &LineBreakBox{
+			fce: fce,
+		}, n, nil
 	case RSimpleBox:
 		t := string(rs)
 		drawer := &font.Drawer{
@@ -149,14 +152,18 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 	sb.drawer.DrawString(sb.Contents)
 }
 
-type LineBreakBox struct{}
+type LineBreakBox struct {
+	fce font.Face
+}
+
+func (sb *LineBreakBox) DrawBox(i Image, y fixed.Int26_6) {}
 
 func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
 	return fixed.Int26_6(0)
 }
 
 func (sb *LineBreakBox) MetricsRect() font.Metrics {
-	return font.Metrics{}
+	return sb.fce.Metrics()
 }
 
 func (sb *LineBreakBox) FontRect() fixed.Rectangle26_6 {

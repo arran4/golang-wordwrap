@@ -29,17 +29,14 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	pmax := bounds.Min
 	pmax.Y = bounds.Max.Y
 	for _, b := range sl.Boxes {
-		switch b := b.(type) {
-		case *SimpleBox:
-			ir := b.AdvanceRect().Ceil()
-			pmax.X += ir
-			subImage := i.SubImage(image.Rectangle{
-				Min: pmin,
-				Max: pmax,
-			}).(*image.RGBA)
-			b.DrawBox(subImage, sl.fullAscent)
-			pmin.X += ir
-		}
+		ir := b.AdvanceRect().Ceil()
+		pmax.X += ir
+		subImage := i.SubImage(image.Rectangle{
+			Min: pmin,
+			Max: pmax,
+		}).(*image.RGBA)
+		b.DrawBox(subImage, sl.fullAscent)
+		pmin.X += ir
 	}
 	return nil
 }
@@ -62,42 +59,42 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		if b == nil {
 			break
 		}
+		m := b.MetricsRect()
 		switch b.(type) {
 		case *SimpleBox:
-			m := b.MetricsRect()
 			a := b.AdvanceRect()
 			irdx := a.Ceil()
 			szdx := (r.size.Max.X - r.size.Min.X).Ceil()
 			if irdx+szdx >= container.Dx() {
 				if b.Whitespace() {
-					n += i
-					b = &LineBreakBox{}
+					b = &LineBreakBox{
+						fce: fce,
+					}
 				}
 				done = true
-				break
+				r.Boxes = append(r.Boxes, b)
+				continue
 			}
 			r.size.Max.X += a
-			ac := -m.Ascent
-			if ac < r.size.Min.Y {
-				r.size.Min.Y = ac
-			}
-			dc := m.Descent
-			if dc > r.size.Max.Y {
-				r.size.Max.Y = dc
-			}
-			fullAscent := m.Height - m.Descent
-			if r.fullAscent < fullAscent {
-				r.fullAscent = fullAscent
-			}
-			log.Printf("%d vs %d", r.fullAscent.Ceil(), -ac)
-			n += i
-			r.Boxes = append(r.Boxes, b)
 		case *LineBreakBox:
-			n += i
 			done = true
 		default:
 			return nil, 0, fmt.Errorf("unknown box: %s", reflect.TypeOf(b))
 		}
+		ac := -m.Ascent
+		if ac < r.size.Min.Y {
+			r.size.Min.Y = ac
+		}
+		dc := m.Descent
+		if dc > r.size.Max.Y {
+			r.size.Max.Y = dc
+		}
+		fullAscent := m.Height - m.Descent
+		if r.fullAscent < fullAscent {
+			r.fullAscent = fullAscent
+		}
+		n += i
+		r.Boxes = append(r.Boxes, b)
 	}
 	return r, n, nil
 }
