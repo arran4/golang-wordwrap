@@ -18,7 +18,7 @@ type Box interface {
 	DrawBox(i Image, y fixed.Int26_6)
 }
 
-type Boxer func(fce font.Face, color image.Image, text []rune) (Box, int, error)
+type Boxer func(fce font.Face, color image.Image, text []rune, options ...BoxerOption) (Box, int, error)
 
 func IsCR(r rune) bool {
 	return r == '\r'
@@ -28,15 +28,16 @@ func IsLF(r rune) bool {
 	return r == '\n'
 }
 
-func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error) {
+func SimpleBoxer(fce font.Face, color image.Image, text []rune, options ...BoxerOption) (Box, int, error) {
 	n, rs, rmode := SimpleBoxerGrab(text)
+	var b Box
 	switch rmode {
 	case RNIL:
 		return nil, n, nil
 	case RCRLF:
-		return &LineBreakBox{
+		b = &LineBreakBox{
 			fce: fce,
-		}, n, nil
+		}
 	case RSimpleBox:
 		t := string(rs)
 		drawer := &font.Drawer{
@@ -47,16 +48,20 @@ func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error
 			return nil, 0, errors.New("font face not provided")
 		}
 		ttb, a := drawer.BoundString(t)
-		return &SimpleBox{
+		b = &SimpleBox{
 			drawer:   drawer,
 			Contents: t,
 			Bounds:   ttb,
 			Advance:  a,
 			Metrics:  fce.Metrics(),
-		}, n, nil
+		}
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
 	}
+	for _, option := range options {
+		option.ApplyBoxConfig(b)
+	}
+	return b, n, nil
 }
 
 const (
@@ -125,7 +130,11 @@ type SimpleBox struct {
 	drawer   *font.Drawer
 	Advance  fixed.Int26_6
 	Metrics  font.Metrics
-	BoxBox   bool
+	boxBox   bool
+}
+
+func (sb *SimpleBox) turnOnBox() {
+	sb.boxBox = true
 }
 
 func (sb *SimpleBox) AdvanceRect() fixed.Int26_6 {
@@ -152,7 +161,7 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 		Y: fixed.I(b.Min.Y) + y,
 	}
 	sb.drawer.DrawString(sb.Contents)
-	if sb.BoxBox {
+	if sb.boxBox {
 		util.DrawBox(i, b)
 	}
 }

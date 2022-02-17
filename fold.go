@@ -16,13 +16,22 @@ type Line interface {
 	DrawLine(i Image) error
 }
 
-type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
+type Folder func(b Boxer, pos int, feed []rune, options ...FolderOption) (Line, int, error)
 
 type SimpleLine struct {
-	Boxes   []Box
-	size    fixed.Rectangle26_6
-	height  fixed.Int26_6
-	BoxLine bool
+	Boxes        []Box
+	size         fixed.Rectangle26_6
+	height       fixed.Int26_6
+	boxLine      bool
+	boxerOptions []BoxerOption
+}
+
+func (sl *SimpleLine) addBoxConfig(bo BoxerOption) {
+	sl.boxerOptions = append(sl.boxerOptions, bo)
+}
+
+func (sl *SimpleLine) turnOnBox() {
+	sl.boxLine = true
 }
 
 func (sl *SimpleLine) DrawLine(i Image) error {
@@ -40,13 +49,13 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 		b.DrawBox(subImage, sl.height)
 		r.Min.X = r.Max.X
 	}
-	if sl.BoxLine {
+	if sl.boxLine {
 		util.DrawBox(i, bounds)
 	}
 	return nil
 }
 
-func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle) (Line, int, error) {
+func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle, options ...FolderOption) (Line, int, error) {
 	if len(feed) == 0 {
 		return nil, 0, nil
 	}
@@ -55,9 +64,12 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		Boxes: []Box{},
 		size:  fixed.R(0, 0, 0, 0),
 	}
+	for _, option := range options {
+		option.ApplyFoldConfig(r)
+	}
 	done := false
 	for !done {
-		b, i, err := boxer(fce, image.NewUniform(colornames.Black), feed[n:])
+		b, i, err := boxer(fce, image.NewUniform(colornames.Black), feed[n:], r.boxerOptions...)
 		if err != nil {
 			log.Panicf("Error with boxing text: %s", err)
 		}
