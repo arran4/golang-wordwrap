@@ -10,9 +10,9 @@ import (
 )
 
 type Box interface {
-	ImageRect() image.Rectangle
-	Image() image.Image
 	FontRect() fixed.Rectangle26_6
+	AdvanceRect() fixed.Int26_6
+	MetricsRect() font.Metrics
 	Whitespace() bool
 }
 
@@ -48,6 +48,7 @@ func SimpleBoxer(fce font.Face, color image.Image, text []rune) (Box, int, error
 			Contents: t,
 			Bounds:   ttb,
 			Advance:  a,
+			Metrics:  fce.Metrics(),
 		}, n, nil
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
@@ -119,6 +120,15 @@ type SimpleBox struct {
 	Bounds   fixed.Rectangle26_6
 	drawer   *font.Drawer
 	Advance  fixed.Int26_6
+	Metrics  font.Metrics
+}
+
+func (sb *SimpleBox) AdvanceRect() fixed.Int26_6 {
+	return sb.Advance
+}
+
+func (sb *SimpleBox) MetricsRect() font.Metrics {
+	return sb.Metrics
 }
 
 func (sb *SimpleBox) FontRect() fixed.Rectangle26_6 {
@@ -127,30 +137,6 @@ func (sb *SimpleBox) FontRect() fixed.Rectangle26_6 {
 
 func (sb *SimpleBox) Whitespace() bool {
 	return sb.Contents == "" || unicode.IsSpace(rune(sb.Contents[0]))
-}
-
-func (sb *SimpleBox) Image() image.Image {
-	i := image.NewRGBA(sb.ImageRect())
-	if sb.drawer == nil {
-		return i
-	}
-	sb.drawer.Dst = i
-	sb.drawer.Dot = sb.drawer.Dot.Sub(sb.Bounds.Min)
-	sb.drawer.DrawString(sb.Contents)
-	return i
-}
-
-func (sb *SimpleBox) ImageRect() image.Rectangle {
-	return image.Rectangle{
-		Min: image.Point{
-			X: 0,
-			Y: -sb.drawer.Face.Metrics().Ascent.Round(),
-		},
-		Max: image.Point{
-			X: (sb.Advance).Round(),
-			Y: sb.drawer.Face.Metrics().Height.Round() - sb.drawer.Face.Metrics().Ascent.Round(),
-		},
-	}
 }
 
 func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
@@ -165,21 +151,18 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 
 type LineBreakBox struct{}
 
+func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
+	return fixed.Int26_6(0)
+}
+
+func (sb *LineBreakBox) MetricsRect() font.Metrics {
+	return font.Metrics{}
+}
+
 func (sb *LineBreakBox) FontRect() fixed.Rectangle26_6 {
 	return fixed.Rectangle26_6{}
 }
 
 func (sb *LineBreakBox) Whitespace() bool {
 	return true
-}
-
-func (sb *LineBreakBox) Image() image.Image {
-	return image.NewRGBA(sb.ImageRect())
-}
-
-func (sb *LineBreakBox) ImageRect() image.Rectangle {
-	return image.Rectangle{
-		Min: image.Point{},
-		Max: image.Point{},
-	}
 }

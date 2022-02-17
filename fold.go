@@ -13,19 +13,14 @@ import (
 type Line interface {
 	Size() image.Rectangle
 	DrawLine(i Image) error
-	LinePos() int
 }
 
 type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
 
 type SimpleLine struct {
-	Boxes []Box
-	size  image.Rectangle
-	midY  fixed.Int26_6
-}
-
-func (sl *SimpleLine) LinePos() int {
-	return sl.midY.Round()
+	Boxes      []Box
+	size       fixed.Rectangle26_6
+	fullAscent fixed.Int26_6
 }
 
 func (sl *SimpleLine) DrawLine(i Image) error {
@@ -36,14 +31,14 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	for _, b := range sl.Boxes {
 		switch b := b.(type) {
 		case *SimpleBox:
-			ir := b.ImageRect()
-			pmax.X += ir.Dx()
+			ir := b.AdvanceRect().Ceil()
+			pmax.X += ir
 			subImage := i.SubImage(image.Rectangle{
 				Min: pmin,
 				Max: pmax,
 			}).(*image.RGBA)
-			b.DrawBox(subImage, sl.midY)
-			pmin.X += ir.Dx()
+			b.DrawBox(subImage, sl.fullAscent)
+			pmin.X += ir
 		}
 	}
 	return nil
@@ -56,7 +51,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 	n := 0
 	r := &SimpleLine{
 		Boxes: []Box{},
-		size:  image.Rect(0, 0, 0, 0),
+		size:  fixed.R(0, 0, 0, 0),
 	}
 	done := false
 	for !done {
@@ -69,9 +64,11 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		}
 		switch b.(type) {
 		case *SimpleBox:
-			ir := b.ImageRect()
-			irdx := ir.Dx()
-			if irdx+r.size.Dx() >= container.Dx() {
+			m := b.MetricsRect()
+			a := b.AdvanceRect()
+			irdx := a.Ceil()
+			szdx := (r.size.Max.X - r.size.Min.X).Ceil()
+			if irdx+szdx >= container.Dx() {
 				if b.Whitespace() {
 					n += i
 					b = &LineBreakBox{}
@@ -79,17 +76,20 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 				done = true
 				break
 			}
-			r.size.Max.X += irdx
-			if ir.Min.Y < r.size.Min.Y {
-				r.size.Min.Y = ir.Min.Y
+			r.size.Max.X += a
+			ac := -m.Ascent
+			if ac < r.size.Min.Y {
+				r.size.Min.Y = ac
 			}
-			if ir.Max.Y > r.size.Max.Y {
-				r.size.Max.Y = ir.Max.Y
+			dc := m.Descent
+			if dc > r.size.Max.Y {
+				r.size.Max.Y = dc
 			}
-			bMidY := -b.FontRect().Min.Y
-			if r.midY < bMidY {
-				r.midY = bMidY
+			fullAscent := m.Height - m.Descent
+			if r.fullAscent < fullAscent {
+				r.fullAscent = fullAscent
 			}
+			log.Printf("%d vs %d", r.fullAscent.Ceil(), -ac)
 			n += i
 			r.Boxes = append(r.Boxes, b)
 		case *LineBreakBox:
@@ -103,5 +103,11 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 }
 
 func (sl *SimpleLine) Size() image.Rectangle {
-	return sl.size
+	return image.Rectangle{
+		Min: image.Point{},
+		Max: image.Point{
+			X: (sl.size.Max.X - sl.size.Min.X).Ceil(),
+			Y: (sl.size.Max.Y - sl.size.Min.Y).Ceil(),
+		},
+	}
 }

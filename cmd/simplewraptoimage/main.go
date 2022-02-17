@@ -51,12 +51,11 @@ func main() {
 			break
 		}
 		s := l.Size()
-		p.Y += l.LinePos()
 		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
 		if err := l.DrawLine(rgba); err != nil {
 			log.Panicf("Error with drawing text: %s", err)
 		}
-		p.Y += s.Dy() - l.LinePos()
+		p.Y += s.Dy()
 		n += ni
 
 	}
