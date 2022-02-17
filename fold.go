@@ -13,7 +13,7 @@ import (
 type Line interface {
 	Size() image.Rectangle
 	DrawLine(i Image) error
-	LineHeight() int
+	LinePos() int
 }
 
 type Folder func(b Boxer, pos int, feed []rune) (Line, int, error)
@@ -24,7 +24,7 @@ type SimpleLine struct {
 	midY  fixed.Int26_6
 }
 
-func (sl *SimpleLine) LineHeight() int {
+func (sl *SimpleLine) LinePos() int {
 	return sl.midY.Round()
 }
 
@@ -80,7 +80,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 				break
 			}
 			r.size.Max.X += irdx
-			if ir.Min.Y > r.size.Min.Y {
+			if ir.Min.Y < r.size.Min.Y {
 				r.size.Min.Y = ir.Min.Y
 			}
 			if ir.Max.Y > r.size.Max.Y {
