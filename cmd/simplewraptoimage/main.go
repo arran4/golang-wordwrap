@@ -42,25 +42,8 @@ func main() {
 	if err != nil {
 		log.Panicf("Text fetch errror: %s", err)
 	}
-	n := 0
-	rt := []rune(text)
-	p := i.Rect.Min
-	for p.Y < i.Rect.Dy() {
-		l, ni, err := wordwrap.SimpleFolder(wordwrap.SimpleBoxer, grf, rt[n:], i.Rect, wordwrap.BoxLine)
-		if err != nil {
-			log.Panicf("Error with boxing text: %s", err)
-		}
-		if l == nil {
-			break
-		}
-		s := l.Size()
-		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
-		if err := l.DrawLine(rgba); err != nil {
-			log.Panicf("Error with drawing text: %s", err)
-		}
-		//util.DrawBox(i, s.Add(p))
-		p.Y += s.Dy()
-		n += ni
+	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxLine, wordwrap.BoxBox); err != nil {
+
 	}
 	outfn := *outfilename
 	if *textsource != "-" && outfn == "out.png" {
@@ -88,7 +71,7 @@ func GetText(fn string) (string, error) {
 	}
 	b, err := ioutil.ReadFile(fn)
 	if err != nil {
-		return "", nil
+		return "", fmt.Errorf("reading file %s: %w", fn, err)
 	}
 	return string(b), nil
 }
