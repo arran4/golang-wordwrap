@@ -40,10 +40,10 @@ func main() {
 	grf := util.GetFontFace(*fontsize, *dpi, gr)
 	text, err := GetText(*textsource)
 	if err != nil {
-		log.Panicf("Text fetch errror: %s", err)
+		log.Panicf("Text fetch error: %s", err)
 	}
 	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxLine, wordwrap.BoxBox); err != nil {
-
+		log.Panicf("Text wrap and draw error: %s", err)
 	}
 	outfn := *outfilename
 	if *textsource != "-" && outfn == "out.png" {

@@ -21,26 +21,26 @@ func SimpleWrapTextToImage(text string, i *image.RGBA, grf font.Face, opts ...Wr
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
 	}
-	return sw.TextToImage(i, ls)
+	return sw.RenderLines(i, ls, i.Rect.Min)
 }
 
-func (sw *SimpleWrapper) TextToImage(i *image.RGBA, ls []Line) error {
-	p := i.Rect.Min
+func (sw *SimpleWrapper) RenderLines(i *image.RGBA, ls []Line, at image.Point) error {
 	for _, l := range ls {
 		s := l.Size()
-		rgba := i.SubImage(s.Add(p)).(*image.RGBA)
+		rgba := i.SubImage(s.Add(at)).(*image.RGBA)
 		if err := l.DrawLine(rgba); err != nil {
 			return fmt.Errorf("drawing text: %s", err)
 		}
-		p.Y += s.Dy()
+		at.Y += s.Dy()
 	}
 	return nil
 }
 
-func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) ([]Line, image.Point, error) {
+func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
 	sw := &SimpleWrapper{}
 	sw.ApplyOptions(opts)
-	return sw.TextToRect(text, r, grf)
+	l, p, err := sw.TextToRect(text, r, grf)
+	return sw, l, p, err
 }
 
 func (sw *SimpleWrapper) ApplyOptions(opts []WrapperOption) {
