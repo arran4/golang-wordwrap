@@ -13,12 +13,13 @@ import (
 type Line interface {
 	Size() image.Rectangle
 	DrawLine(i Image) error
+	Boxes() []Box
 }
 
 type Folder func(b Boxer, pos int, feed []rune, options ...FolderOption) (Line, int, error)
 
 type SimpleLine struct {
-	Boxes        []Box
+	boxes        []Box
 	size         fixed.Rectangle26_6
 	height       fixed.Int26_6
 	boxLine      bool
@@ -27,6 +28,10 @@ type SimpleLine struct {
 
 func (sl *SimpleLine) addBoxConfig(bo BoxerOption) {
 	sl.boxerOptions = append(sl.boxerOptions, bo)
+}
+
+func (sl *SimpleLine) Boxes() []Box {
+	return sl.boxes
 }
 
 func (sl *SimpleLine) turnOnBox() {
@@ -41,10 +46,10 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	}
 	r.Max.Y = bounds.Max.Y
 	var fi = fixed.I(r.Min.X)
-	for _, b := range sl.Boxes {
+	for _, b := range sl.boxes {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
-		subImage := i.SubImage(r).(*image.RGBA)
+		subImage := i.SubImage(r).(Image)
 		b.DrawBox(subImage, sl.height)
 		r.Min.X = r.Max.X
 	}
@@ -60,7 +65,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 	}
 	n := 0
 	r := &SimpleLine{
-		Boxes: []Box{},
+		boxes: []Box{},
 		size:  fixed.R(0, 0, 0, 0),
 	}
 	for _, option := range options {
@@ -87,7 +92,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 						fce: fce,
 					}
 					n += i
-					r.Boxes = append(r.Boxes, b)
+					r.boxes = append(r.boxes, b)
 				}
 				done = true
 				continue
@@ -111,7 +116,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 			r.height = height
 		}
 		n += i
-		r.Boxes = append(r.Boxes, b)
+		r.boxes = append(r.boxes, b)
 	}
 	return r, n, nil
 }

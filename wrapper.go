@@ -14,20 +14,20 @@ func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 	sw.FoldOptions = append(sw.FoldOptions, option)
 }
 
-func SimpleWrapTextToImage(text string, i *image.RGBA, grf font.Face, opts ...WrapperOption) error {
+func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
 	sw := &SimpleWrapper{}
 	sw.ApplyOptions(opts)
-	ls, _, err := sw.TextToRect(text, i.Rect, grf)
+	ls, _, err := sw.TextToRect(text, i.Bounds(), grf)
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
 	}
-	return sw.RenderLines(i, ls, i.Rect.Min)
+	return sw.RenderLines(i, ls, i.Bounds().Min)
 }
 
-func (sw *SimpleWrapper) RenderLines(i *image.RGBA, ls []Line, at image.Point) error {
+func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
 	for _, l := range ls {
 		s := l.Size()
-		rgba := i.SubImage(s.Add(at)).(*image.RGBA)
+		rgba := i.SubImage(s.Add(at)).(Image)
 		if err := l.DrawLine(rgba); err != nil {
 			return fmt.Errorf("drawing text: %s", err)
 		}
@@ -61,6 +61,9 @@ func (sw *SimpleWrapper) TextToRect(text string, r image.Rectangle, grf font.Fac
 		}
 		if l == nil {
 			break
+		}
+		if ni == 0 && len(rt) > n && len(l.Boxes()) == 0 {
+			return ls, p, nil
 		}
 		ls = append(ls, l)
 		n += ni

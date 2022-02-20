@@ -112,7 +112,7 @@ func TestSimpleFolder(t *testing.T) {
 				var gotWords []string
 				switch l := gotL.(type) {
 				case *SimpleLine:
-					for _, b := range l.Boxes {
+					for _, b := range l.boxes {
 						switch b := b.(type) {
 						case *SimpleBox:
 							gotWords = append(gotWords, b.Contents)
