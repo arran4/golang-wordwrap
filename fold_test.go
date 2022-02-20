@@ -52,7 +52,7 @@ func TestSimpleFolder(t *testing.T) {
 			},
 			wantLines: []*WantedLine{
 				{
-					words: []string{},
+					words: nil,
 				},
 			},
 			wantErr: false,
@@ -136,20 +136,26 @@ func TestSimpleFolder(t *testing.T) {
 	}
 }
 
-func FixedWordWidthBoxer(_ font.Face, _ image.Image, text []rune) (Box, int, error) {
+func FixedWordWidthBoxer(_ font.Face, _ image.Image, text []rune, options ...BoxerOption) (Box, int, error) {
 	n, rs, rmode := SimpleBoxerGrab(text)
+	var b Box
 	switch rmode {
 	case RNIL:
 		return nil, n, nil
 	case RCRLF:
-		return &LineBreakBox{}, n, nil
+		b = &LineBreakBox{}
 	case RSimpleBox:
 		t := string(rs)
-		return &SimpleBox{
+		b = &SimpleBox{
 			Contents: t,
 			Bounds:   fixed.R(0, 0, 1, 1),
-		}, n, nil
+			Advance:  fixed.I(1),
+		}
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
 	}
+	for _, option := range options {
+		option.ApplyBoxConfig(b)
+	}
+	return b, n, nil
 }

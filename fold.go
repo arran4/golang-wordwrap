@@ -7,7 +7,6 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
-	"log"
 	"reflect"
 )
 
@@ -71,7 +70,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 	for !done {
 		b, i, err := boxer(fce, image.NewUniform(colornames.Black), feed[n:], r.boxerOptions...)
 		if err != nil {
-			log.Panicf("Error with boxing text: %s", err)
+			return nil, 0, fmt.Errorf("boxing %d %w", n, err)
 		}
 		if b == nil {
 			break
@@ -87,9 +86,10 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 					b = &LineBreakBox{
 						fce: fce,
 					}
+					n += i
+					r.Boxes = append(r.Boxes, b)
 				}
 				done = true
-				r.Boxes = append(r.Boxes, b)
 				continue
 			}
 			r.size.Max.X += a
