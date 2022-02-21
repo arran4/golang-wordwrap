@@ -6,16 +6,22 @@ import (
 	"image"
 )
 
+// SimpleWrapper quick and dirty wrapper.
 type SimpleWrapper struct {
 	folderOptions []FolderOption
 	boxerOptions  []BoxerOption
-	sb            Boxer
+	boxer         Boxer
+	fontDrawer    *font.Drawer
 }
 
+// addFoldConfig allows passing down of FolderOption
 func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 	sw.folderOptions = append(sw.folderOptions, option)
 }
 
+// SimpleWrapTextToImage all in one helper function to wrap text onto an image. Use image.Image's SubImage() to specify
+// the exact location to render:
+// 		SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
 	sw := NewSimpleWrapper(text, grf, opts...)
 	ls, _, err := sw.TextToRect(i.Bounds())
@@ -25,16 +31,22 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 	return sw.RenderLines(i, ls, i.Bounds().Min)
 }
 
+// NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
 func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
-	sw := &SimpleWrapper{}
-	sw.ApplyOptions(opts)
-	sw.sb = NewSimpleBoxer([]rune(text), &font.Drawer{
+	fontDrawer := &font.Drawer{
 		Src:  image.NewUniform(image.Black),
 		Face: grf,
-	}, sw.boxerOptions...)
+	}
+	sw := &SimpleWrapper{
+		fontDrawer: fontDrawer,
+	}
+	sw.ApplyOptions(opts...)
+	sw.boxer = NewSimpleBoxer([]rune(text), fontDrawer, sw.boxerOptions...)
 	return sw
 }
 
+// RenderLines draws the boxes for the given lines. on the image, starting at the specified point ignoring the original
+// boundaries but maintaining the wrapping
 func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
 	for _, l := range ls {
 		s := l.Size()
@@ -47,26 +59,30 @@ func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
 	return nil
 }
 
+// SimpleWrapTextToRect calculates and returns the position of each box and the image.Point it would end.
 func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
 	sw := NewSimpleWrapper(text, grf, opts...)
 	l, p, err := sw.TextToRect(r)
 	return sw, l, p, err
 }
 
-func (sw *SimpleWrapper) ApplyOptions(opts []WrapperOption) {
+// ApplyOptions allows the application of options to the SimpleWrapper (Such as new fonts, or turning on / off boxes.
+func (sw *SimpleWrapper) ApplyOptions(opts ...WrapperOption) {
 	for _, opt := range opts {
 		opt.ApplyWrapperConfig(sw)
 	}
 }
 
+// addBoxConfig Adds a constructor box config option to the boxer
 func (sw *SimpleWrapper) addBoxConfig(bo BoxerOption) {
 	sw.boxerOptions = append(sw.boxerOptions, bo)
 }
 
+// TextToRect calculates and returns the position of each box and the image.Point it would end.
 func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, error) {
 	ls := make([]Line, 0)
 	p := r.Min
-	sf := NewSimpleFolder(sw.sb, r, sw.folderOptions...)
+	sf := NewSimpleFolder(sw.boxer, r, sw.fontDrawer, sw.folderOptions...)
 	for p.Y < r.Dy() {
 		l, err := sf.Next()
 		if err != nil {
@@ -79,5 +95,6 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 		s := l.Size()
 		p.Y += s.Dy()
 	}
+	sw.fontDrawer = sf.lastFontDrawer
 	return ls, p, nil
 }
