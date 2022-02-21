@@ -16,7 +16,7 @@ func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 }
 
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
-	sw := NewSimpleWrapper(opts)
+	sw := NewSimpleWrapper(opts...)
 	ls, _, err := sw.TextToRect(text, i.Bounds(), grf)
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
@@ -24,7 +24,7 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 	return sw.RenderLines(i, ls, i.Bounds().Min)
 }
 
-func NewSimpleWrapper(opts []WrapperOption) *SimpleWrapper {
+func NewSimpleWrapper(opts ...WrapperOption) *SimpleWrapper {
 	sw := &SimpleWrapper{}
 	sw.ApplyOptions(opts)
 	return sw
@@ -43,7 +43,7 @@ func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
 }
 
 func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
-	sw := NewSimpleWrapper(opts)
+	sw := NewSimpleWrapper(opts...)
 	l, p, err := sw.TextToRect(text, r, grf)
 	return sw, l, p, err
 }
