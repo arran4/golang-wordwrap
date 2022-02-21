@@ -24,7 +24,7 @@ func TestSimpleFolder(t *testing.T) {
 			name: "just word that fits",
 			folder: NewSimpleFolder(&FixedWordWidthBoxer{
 				text: []rune("word that fits"),
-			}, image.Rect(0, 0, 6, 6)),
+			}, image.Rect(0, 0, 6, 6), nil),
 			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that", " ", "fits"},
@@ -37,7 +37,7 @@ func TestSimpleFolder(t *testing.T) {
 			name: "Empty",
 			folder: NewSimpleFolder(&FixedWordWidthBoxer{
 				text: []rune(""),
-			}, image.Rect(0, 0, 2, 5)),
+			}, image.Rect(0, 0, 2, 5), nil),
 			wantLines: []*WantedLine{
 				{
 					words: nil,
@@ -49,7 +49,7 @@ func TestSimpleFolder(t *testing.T) {
 			name: "word that folder over onto a new line",
 			folder: NewSimpleFolder(&FixedWordWidthBoxer{
 				text: []rune("word that folder over onto a new line"),
-			}, image.Rect(0, 0, 6, 5)),
+			}, image.Rect(0, 0, 6, 5), nil),
 			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that", " ", "folder"},
@@ -70,7 +70,7 @@ func TestSimpleFolder(t *testing.T) {
 			name: "eod is nil",
 			folder: NewSimpleFolder(&FixedWordWidthBoxer{
 				text: []rune("word that"),
-			}, image.Rect(0, 0, 6, 5)),
+			}, image.Rect(0, 0, 6, 5), nil),
 			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that"},

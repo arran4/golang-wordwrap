@@ -9,31 +9,41 @@ import (
 	"reflect"
 )
 
+// Line refers to a literal line of text
 type Line interface {
+	// Size the line consumes
 	Size() image.Rectangle
 	DrawLine(i Image) error
+	// Boxes are the lines contents
 	Boxes() []Box
 }
 
+// Folder is the literal line sizer & producer function
 type Folder interface {
+	// Next line
 	Next() (Line, error)
 }
 
+// SimpleLine is a simple implementation to prevent name space names later. Represents a line
 type SimpleLine struct {
-	boxes   []Box
-	size    fixed.Rectangle26_6
-	height  fixed.Int26_6
-	boxLine bool
+	boxes      []Box
+	size       fixed.Rectangle26_6
+	height     fixed.Int26_6
+	boxLine    bool
+	fontDrawer *font.Drawer
 }
 
+// Boxes are the lines contents
 func (sl *SimpleLine) Boxes() []Box {
 	return sl.boxes
 }
 
+// turnOnBox turns on drawing a box around the used portion of the line
 func (sl *SimpleLine) turnOnBox() {
 	sl.boxLine = true
 }
 
+// DrawLine renders image to image, you can control the location by using the SubImage function.
 func (sl *SimpleLine) DrawLine(i Image) error {
 	bounds := i.Bounds()
 	r := image.Rectangle{
@@ -55,16 +65,20 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	return nil
 }
 
+// SimpleFolder is a simple Folder
 type SimpleFolder struct {
-	boxer       Boxer
-	container   image.Rectangle
-	lineOptions []func(Line)
+	boxer          Boxer
+	container      image.Rectangle
+	lineOptions    []func(Line)
+	lastFontDrawer *font.Drawer
 }
 
-func NewSimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOption) *SimpleFolder {
+// NewSimpleFolder constructs a SimpleFolder applies options provided.
+func NewSimpleFolder(boxer Boxer, container image.Rectangle, lastFontDrawer *font.Drawer, options ...FolderOption) *SimpleFolder {
 	r := &SimpleFolder{
-		boxer:     boxer,
-		container: container,
+		boxer:          boxer,
+		container:      container,
+		lastFontDrawer: lastFontDrawer,
 	}
 	for _, option := range options {
 		option.ApplyFoldConfig(r)
@@ -72,13 +86,14 @@ func NewSimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOp
 	return r
 }
 
+// Next generates the next life if space
 func (sf *SimpleFolder) Next() (Line, error) {
 	n := 0
 	r := &SimpleLine{
-		boxes: []Box{},
-		size:  fixed.R(0, 0, 0, 0),
+		boxes:      []Box{},
+		size:       fixed.R(0, 0, 0, 0),
+		fontDrawer: sf.lastFontDrawer,
 	}
-	var lastFont *font.Drawer
 	done := false
 	for !done {
 		b, i, err := sf.boxer.Next()
@@ -89,8 +104,13 @@ func (sf *SimpleFolder) Next() (Line, error) {
 			break
 		}
 		n += i
-		lastFont = b.FontDrawer()
 		m := b.MetricsRect()
+		fontDrawer := b.FontDrawer()
+		if fontDrawer != nil {
+			sf.lastFontDrawer = fontDrawer
+		} else {
+			fontDrawer = sf.lastFontDrawer
+		}
 		switch b.(type) {
 		case *SimpleBox:
 			a := b.AdvanceRect()
@@ -99,7 +119,7 @@ func (sf *SimpleFolder) Next() (Line, error) {
 			if irdx+szdx >= sf.container.Dx() {
 				if b.Whitespace() {
 					b = &LineBreakBox{
-						fontDrawer: lastFont,
+						fontDrawer: fontDrawer,
 					}
 					r.boxes = append(r.boxes, b)
 				} else {
@@ -107,7 +127,7 @@ func (sf *SimpleFolder) Next() (Line, error) {
 					n -= i
 				}
 				done = true
-				continue
+				//continue
 			}
 			r.size.Max.X += a
 		case *LineBreakBox:
@@ -138,6 +158,7 @@ func (sf *SimpleFolder) Next() (Line, error) {
 	return r, nil
 }
 
+// Size is the size consumed of the line
 func (sl *SimpleLine) Size() image.Rectangle {
 	return image.Rectangle{
 		Min: image.Point{},
