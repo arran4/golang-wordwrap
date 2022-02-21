@@ -3,7 +3,6 @@ package wordwrap
 import (
 	"fmt"
 	"github.com/arran4/golang-wordwrap/util"
-	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
@@ -59,10 +58,7 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	return nil
 }
 
-func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle, options ...FolderOption) (Line, int, error) {
-	if len(feed) == 0 {
-		return nil, 0, nil
-	}
+func SimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOption) (Line, error) {
 	n := 0
 	r := &SimpleLine{
 		boxes: []Box{},
@@ -71,15 +67,18 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 	for _, option := range options {
 		option.ApplyFoldConfig(r)
 	}
+	var lastFont *font.Drawer
 	done := false
 	for !done {
-		b, i, err := boxer(fce, image.NewUniform(colornames.Black), feed[n:], r.boxerOptions...)
+		b, i, err := boxer.Next()
 		if err != nil {
-			return nil, 0, fmt.Errorf("boxing %d %w", n, err)
+			return nil, fmt.Errorf("boxing at pos %d: %w", n-i, err)
 		}
 		if b == nil {
 			break
 		}
+		n += i
+		lastFont = b.FontDrawer()
 		m := b.MetricsRect()
 		switch b.(type) {
 		case *SimpleBox:
@@ -89,10 +88,12 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 			if irdx+szdx >= container.Dx() {
 				if b.Whitespace() {
 					b = &LineBreakBox{
-						fce: fce,
+						fontDrawer: lastFont,
 					}
-					n += i
 					r.boxes = append(r.boxes, b)
+				} else {
+					boxer.Back(i)
+					n -= i
 				}
 				done = true
 				continue
@@ -101,7 +102,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		case *LineBreakBox:
 			done = true
 		default:
-			return nil, 0, fmt.Errorf("unknown box: %s", reflect.TypeOf(b))
+			return nil, fmt.Errorf("unknown box at pos %d: %s", n-i, reflect.TypeOf(b))
 		}
 		ac := -m.Ascent
 		if ac < r.size.Min.Y {
@@ -115,10 +116,12 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		if r.height < height {
 			r.height = height
 		}
-		n += i
 		r.boxes = append(r.boxes, b)
 	}
-	return r, n, nil
+	if n == 0 {
+		return nil, nil
+	}
+	return r, nil
 }
 
 func (sl *SimpleLine) Size() image.Rectangle {

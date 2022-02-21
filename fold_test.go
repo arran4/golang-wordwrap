@@ -12,9 +12,8 @@ import (
 func TestSimpleFolder(t *testing.T) {
 	type args struct {
 		boxer     Boxer
-		fce       font.Face
-		feed      []rune
 		container image.Rectangle
+		Options   []FolderOption
 	}
 	type WantedLine struct {
 		words []string
@@ -29,9 +28,9 @@ func TestSimpleFolder(t *testing.T) {
 		{
 			name: "just word that fits",
 			args: args{
-				boxer:     FixedWordWidthBoxer,
-				fce:       nil,
-				feed:      []rune("word that fits"),
+				boxer: &FixedWordWidthBoxer{
+					text: []rune("word that fits"),
+				},
 				container: image.Rect(0, 0, 6, 6),
 			},
 			wantLines: []*WantedLine{
@@ -45,9 +44,9 @@ func TestSimpleFolder(t *testing.T) {
 		{
 			name: "Empty",
 			args: args{
-				boxer:     FixedWordWidthBoxer,
-				fce:       nil,
-				feed:      []rune(""),
+				boxer: &FixedWordWidthBoxer{
+					text: []rune(""),
+				},
 				container: image.Rect(0, 0, 2, 5),
 			},
 			wantLines: []*WantedLine{
@@ -60,9 +59,9 @@ func TestSimpleFolder(t *testing.T) {
 		{
 			name: "word that folder over onto a new line",
 			args: args{
-				boxer:     FixedWordWidthBoxer,
-				fce:       nil,
-				feed:      []rune("word that folder over onto a new line"),
+				boxer: &FixedWordWidthBoxer{
+					text: []rune("word that folder over onto a new line"),
+				},
 				container: image.Rect(0, 0, 6, 5),
 			},
 			wantLines: []*WantedLine{
@@ -84,9 +83,9 @@ func TestSimpleFolder(t *testing.T) {
 		{
 			name: "eod is nil",
 			args: args{
-				boxer:     FixedWordWidthBoxer,
-				fce:       nil,
-				feed:      []rune("word that"),
+				boxer: &FixedWordWidthBoxer{
+					text: []rune("word that"),
+				},
 				container: image.Rect(0, 0, 6, 5),
 			},
 			wantLines: []*WantedLine{
@@ -101,10 +100,8 @@ func TestSimpleFolder(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			n := 0
 			for _, wantWords := range tt.wantLines {
-				gotL, gotN, err := SimpleFolder(tt.args.boxer, tt.args.fce, tt.args.feed[n:], tt.args.container)
-				n += gotN
+				gotL, err := SimpleFolder(tt.args.boxer, tt.args.container, tt.args.Options...)
 				if (err != nil) != tt.wantErr {
 					t.Errorf("SimpleFolder() error = %v, wantErr %v", err, tt.wantErr)
 					return
@@ -128,20 +125,34 @@ func TestSimpleFolder(t *testing.T) {
 				if !reflect.DeepEqual(gotWords, wantWords.words) {
 					t.Errorf("SimpleFolder() gotWords = %v, wantWords.words %v", gotWords, wantWords.words)
 				}
-				if gotN != wantWords.N {
-					t.Errorf("SimpleFolder() gotN = %v, wantWords.N %v", gotN, wantWords.N)
-				}
 			}
 		})
 	}
 }
 
-func FixedWordWidthBoxer(_ font.Face, _ image.Image, text []rune, options ...BoxerOption) (Box, int, error) {
-	n, rs, rmode := SimpleBoxerGrab(text)
+type FixedWordWidthBoxer struct {
+	text []rune
+	n    int
+}
+
+func (fwb *FixedWordWidthBoxer) SetFontDrawer(face *font.Drawer) {
+	panic("implement me")
+}
+
+func (fwb *FixedWordWidthBoxer) FontDrawer() *font.Drawer {
+	panic("implement me")
+}
+
+func (fwb *FixedWordWidthBoxer) Back(i int) {
+	fwb.n -= i
+}
+
+func (fwb *FixedWordWidthBoxer) Next() (Box, int, error) {
+	n, rs, rmode := SimpleBoxerGrab(fwb.text[fwb.n:])
 	var b Box
 	switch rmode {
 	case RNIL:
-		return nil, n, nil
+		return nil, fwb.n, nil
 	case RCRLF:
 		b = &LineBreakBox{}
 	case RSimpleBox:
@@ -152,10 +163,8 @@ func FixedWordWidthBoxer(_ font.Face, _ image.Image, text []rune, options ...Box
 			Advance:  fixed.I(1),
 		}
 	default:
-		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
+		return nil, fwb.n, fmt.Errorf("unknown rmode %d", rmode)
 	}
-	for _, option := range options {
-		option.ApplyBoxConfig(b)
-	}
-	return b, n, nil
+	fwb.n += n
+	return b, fwb.n, nil
 }

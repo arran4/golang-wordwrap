@@ -93,8 +93,8 @@ var BoxLine = folderOptionFunc(func(f interface{}) {
 })
 
 var BoxBox = boxerOptionFunc(func(f interface{}) {
-	if f, ok := f.(*simpleBoxer); ok {
-		f.PostBoxOptions = append(f.PostBoxOptions, func(box Box) {
+	if f, ok := f.(*SimpleBoxer); ok {
+		f.postBoxOptions = append(f.postBoxOptions, func(box Box) {
 			switch box := box.(type) {
 			case interface{ turnOnBox() }:
 				box.turnOnBox()

@@ -6,7 +6,6 @@ import (
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
-	"image"
 	"unicode"
 )
 
@@ -16,9 +15,15 @@ type Box interface {
 	MetricsRect() font.Metrics
 	Whitespace() bool
 	DrawBox(i Image, y fixed.Int26_6)
+	FontDrawer() *font.Drawer
 }
 
-type Boxer func(fce font.Face, color image.Image, text []rune, options ...BoxerOption) (Box, int, error)
+type Boxer interface {
+	Next() (Box, int, error)
+	SetFontDrawer(face *font.Drawer)
+	FontDrawer() *font.Drawer
+	Back(i int)
+}
 
 func IsCR(r rune) bool {
 	return r == '\r'
@@ -28,45 +33,69 @@ func IsLF(r rune) bool {
 	return r == '\n'
 }
 
-type simpleBoxer struct {
-	PostBoxOptions []func(Box)
+type SimpleBoxer struct {
+	postBoxOptions []func(Box)
+	text           []rune
+	n              int
+	fontDrawer     *font.Drawer
+	Grabber        func(text []rune) (int, []rune, int)
 }
 
-func SimpleBoxer(fce font.Face, color image.Image, text []rune, options ...BoxerOption) (Box, int, error) {
-	sb := &simpleBoxer{}
+func NewSimpleBoxer(text []rune, drawer *font.Drawer, options ...BoxerOption) *SimpleBoxer {
+	sb := &SimpleBoxer{
+		text:       text,
+		n:          0,
+		fontDrawer: drawer,
+		Grabber:    SimpleBoxerGrab,
+	}
 	for _, option := range options {
 		option.ApplyBoxConfig(sb)
 	}
-	n, rs, rmode := SimpleBoxerGrab(text)
+	return sb
+}
+
+func (sb *SimpleBoxer) SetFontDrawer(face *font.Drawer) {
+	sb.fontDrawer = face
+}
+
+func (sb *SimpleBoxer) Back(i int) {
+	sb.n -= i
+}
+
+func (sb *SimpleBoxer) FontDrawer() *font.Drawer {
+	return sb.fontDrawer
+}
+
+func (sb *SimpleBoxer) Next() (Box, int, error) {
+	if len(sb.text) == 0 {
+		return nil, 0, nil
+	}
+	n, rs, rmode := sb.Grabber(sb.text[sb.n:])
 	var b Box
 	switch rmode {
 	case RNIL:
 		return nil, n, nil
 	case RCRLF:
 		b = &LineBreakBox{
-			fce: fce,
+			fontDrawer: sb.fontDrawer,
 		}
 	case RSimpleBox:
 		t := string(rs)
-		drawer := &font.Drawer{
-			Src:  color,
-			Face: fce,
+		if sb.fontDrawer == nil {
+			return nil, 0, errors.New("font drawer not provided")
 		}
-		if fce == nil {
-			return nil, 0, errors.New("font face not provided")
-		}
-		ttb, a := drawer.BoundString(t)
+		ttb, a := sb.fontDrawer.BoundString(t)
 		b = &SimpleBox{
-			drawer:   drawer,
+			drawer:   sb.fontDrawer,
 			Contents: t,
 			Bounds:   ttb,
 			Advance:  a,
-			Metrics:  fce.Metrics(),
+			Metrics:  sb.fontDrawer.Face.Metrics(),
 		}
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
 	}
-	for _, option := range sb.PostBoxOptions {
+	for _, option := range sb.postBoxOptions {
 		option(b)
 	}
 	return b, n, nil
@@ -80,7 +109,6 @@ const (
 
 func SimpleBoxerGrab(text []rune) (int, []rune, int) {
 	n := 0
-	rs := make([]rune, 0, len(text))
 	rmode := RNIL
 	var mode func(rune) bool
 	for _, r := range text {
@@ -114,10 +142,9 @@ func SimpleBoxerGrab(text []rune) (int, []rune, int) {
 		if !mode(r) {
 			break
 		}
-		rs = append(rs, r)
 		n++
 	}
-	return n, rs, rmode
+	return n, text[:n], rmode
 }
 
 func IsSpaceButNotCRLF(r rune) bool {
@@ -139,6 +166,10 @@ type SimpleBox struct {
 	Advance  fixed.Int26_6
 	Metrics  font.Metrics
 	boxBox   bool
+}
+
+func (sb *SimpleBox) FontDrawer() *font.Drawer {
+	return sb.drawer
 }
 
 func (sb *SimpleBox) turnOnBox() {
@@ -175,7 +206,11 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 }
 
 type LineBreakBox struct {
-	fce font.Face
+	fontDrawer *font.Drawer
+}
+
+func (sb *LineBreakBox) FontDrawer() *font.Drawer {
+	return sb.fontDrawer
 }
 
 func (sb *LineBreakBox) DrawBox(i Image, y fixed.Int26_6) {}
@@ -185,7 +220,7 @@ func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
 }
 
 func (sb *LineBreakBox) MetricsRect() font.Metrics {
-	return sb.fce.Metrics()
+	return sb.fontDrawer.Face.Metrics()
 }
 
 func (sb *LineBreakBox) FontRect() fixed.Rectangle26_6 {
