@@ -228,7 +228,11 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b, n, err := SimpleBoxer(tt.args.fce, tt.args.color, tt.args.text)
+			sb := NewSimpleBoxer(tt.args.text, &font.Drawer{
+				Src:  tt.args.color,
+				Face: tt.args.fce,
+			})
+			b, n, err := sb.Next()
 			if tt.wantSimpleBox {
 				sb, ok := b.(*SimpleBox)
 				if ok {

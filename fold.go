@@ -3,7 +3,6 @@ package wordwrap
 import (
 	"fmt"
 	"github.com/arran4/golang-wordwrap/util"
-	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
@@ -16,18 +15,15 @@ type Line interface {
 	Boxes() []Box
 }
 
-type Folder func(b Boxer, pos int, feed []rune, options ...FolderOption) (Line, int, error)
-
-type SimpleLine struct {
-	boxes        []Box
-	size         fixed.Rectangle26_6
-	height       fixed.Int26_6
-	boxLine      bool
-	boxerOptions []BoxerOption
+type Folder interface {
+	Next() (Line, error)
 }
 
-func (sl *SimpleLine) addBoxConfig(bo BoxerOption) {
-	sl.boxerOptions = append(sl.boxerOptions, bo)
+type SimpleLine struct {
+	boxes   []Box
+	size    fixed.Rectangle26_6
+	height  fixed.Int26_6
+	boxLine bool
 }
 
 func (sl *SimpleLine) Boxes() []Box {
@@ -59,40 +55,56 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	return nil
 }
 
-func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Rectangle, options ...FolderOption) (Line, int, error) {
-	if len(feed) == 0 {
-		return nil, 0, nil
+type SimpleFolder struct {
+	boxer       Boxer
+	container   image.Rectangle
+	lineOptions []func(Line)
+}
+
+func NewSimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOption) *SimpleFolder {
+	r := &SimpleFolder{
+		boxer:     boxer,
+		container: container,
 	}
+	for _, option := range options {
+		option.ApplyFoldConfig(r)
+	}
+	return r
+}
+
+func (sf *SimpleFolder) Next() (Line, error) {
 	n := 0
 	r := &SimpleLine{
 		boxes: []Box{},
 		size:  fixed.R(0, 0, 0, 0),
 	}
-	for _, option := range options {
-		option.ApplyFoldConfig(r)
-	}
+	var lastFont *font.Drawer
 	done := false
 	for !done {
-		b, i, err := boxer(fce, image.NewUniform(colornames.Black), feed[n:], r.boxerOptions...)
+		b, i, err := sf.boxer.Next()
 		if err != nil {
-			return nil, 0, fmt.Errorf("boxing %d %w", n, err)
+			return nil, fmt.Errorf("boxing at pos %d: %w", n-i, err)
 		}
 		if b == nil {
 			break
 		}
+		n += i
+		lastFont = b.FontDrawer()
 		m := b.MetricsRect()
 		switch b.(type) {
 		case *SimpleBox:
 			a := b.AdvanceRect()
 			irdx := a.Ceil()
 			szdx := (r.size.Max.X - r.size.Min.X).Ceil()
-			if irdx+szdx >= container.Dx() {
+			if irdx+szdx >= sf.container.Dx() {
 				if b.Whitespace() {
 					b = &LineBreakBox{
-						fce: fce,
+						fontDrawer: lastFont,
 					}
-					n += i
 					r.boxes = append(r.boxes, b)
+				} else {
+					sf.boxer.Back(i)
+					n -= i
 				}
 				done = true
 				continue
@@ -101,7 +113,7 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		case *LineBreakBox:
 			done = true
 		default:
-			return nil, 0, fmt.Errorf("unknown box: %s", reflect.TypeOf(b))
+			return nil, fmt.Errorf("unknown box at pos %d: %s", n-i, reflect.TypeOf(b))
 		}
 		ac := -m.Ascent
 		if ac < r.size.Min.Y {
@@ -115,10 +127,15 @@ func SimpleFolder(boxer Boxer, fce font.Face, feed []rune, container image.Recta
 		if r.height < height {
 			r.height = height
 		}
-		n += i
 		r.boxes = append(r.boxes, b)
 	}
-	return r, n, nil
+	if n == 0 {
+		return nil, nil
+	}
+	for _, option := range sf.lineOptions {
+		option(r)
+	}
+	return r, nil
 }
 
 func (sl *SimpleLine) Size() image.Rectangle {

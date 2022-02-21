@@ -28,9 +28,14 @@ The basics of the library is that it first breaks up the line in to "boxes" boxe
 in the 'simple' implementation here they are assumed to be a set of characters, spaces, or a control character (essentially
 a new line) A box can be thought of the lowest level representation that the library is willing to dea with.
 
-This is created by a `boxer`:
+This is created by a `boxer` a standard iterator like component:
 ```go
-type Boxer func(fce font.Face, color image.Image, text []rune, options ...BoxerOption) (Box, int, error)
+type Boxer interface {
+    Next() (Box, int, error)
+    SetFontDrawer(face *font.Drawer)
+    FontDrawer() *font.Drawer
+    Back(i int)
+}
 ```
 
 For simple uses of the wrapping library you shouldn't need to worry about this. But you might care if you want to insert
@@ -46,7 +51,7 @@ multiple font sizes you would want a consistent baseline so they all appear on t
 
 ## Line
 
-A line is just that a line of boxes that fit in the given space (provied in a rect). A line is produced by a `Liner`. 
+A line is just that a line of boxes that fit in the given space (provided in a rect). A line is produced by a `Liner`. 
 Such as a simple liner. Line does the real folding work; in the 'simple' version it calls the boxer (subject to change) 
 for the next element. Then stops when it runs out of space. If it ends on a space it will return a new line character instead.
 
@@ -138,6 +143,10 @@ wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxBox)
 For demo purposes there is a CLI app in `cmd/simplewraptoimage`
 
 ```
+  -boxbox
+    	Box the box
+  -boxline
+    	Box the line
   -dpi float
     	Doc dpi (default 180)
   -font string

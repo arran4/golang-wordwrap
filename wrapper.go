@@ -7,21 +7,32 @@ import (
 )
 
 type SimpleWrapper struct {
-	FoldOptions []FolderOption
+	folderOptions []FolderOption
+	boxerOptions  []BoxerOption
+	sb            Boxer
 }
 
 func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
-	sw.FoldOptions = append(sw.FoldOptions, option)
+	sw.folderOptions = append(sw.folderOptions, option)
 }
 
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
-	sw := &SimpleWrapper{}
-	sw.ApplyOptions(opts)
-	ls, _, err := sw.TextToRect(text, i.Bounds(), grf)
+	sw := NewSimpleWrapper(text, grf, opts...)
+	ls, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
 	}
 	return sw.RenderLines(i, ls, i.Bounds().Min)
+}
+
+func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
+	sw := &SimpleWrapper{}
+	sw.ApplyOptions(opts)
+	sw.sb = NewSimpleBoxer([]rune(text), &font.Drawer{
+		Src:  image.NewUniform(image.Black),
+		Face: grf,
+	}, sw.boxerOptions...)
+	return sw
 }
 
 func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
@@ -37,9 +48,8 @@ func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
 }
 
 func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
-	sw := &SimpleWrapper{}
-	sw.ApplyOptions(opts)
-	l, p, err := sw.TextToRect(text, r, grf)
+	sw := NewSimpleWrapper(text, grf, opts...)
+	l, p, err := sw.TextToRect(r)
 	return sw, l, p, err
 }
 
@@ -49,24 +59,23 @@ func (sw *SimpleWrapper) ApplyOptions(opts []WrapperOption) {
 	}
 }
 
-func (sw *SimpleWrapper) TextToRect(text string, r image.Rectangle, grf font.Face) ([]Line, image.Point, error) {
+func (sw *SimpleWrapper) addBoxConfig(bo BoxerOption) {
+	sw.boxerOptions = append(sw.boxerOptions, bo)
+}
+
+func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, error) {
 	ls := make([]Line, 0)
-	n := 0
-	rt := []rune(text)
 	p := r.Min
+	sf := NewSimpleFolder(sw.sb, r, sw.folderOptions...)
 	for p.Y < r.Dy() {
-		l, ni, err := SimpleFolder(SimpleBoxer, grf, rt[n:], r, sw.FoldOptions...)
+		l, err := sf.Next()
 		if err != nil {
-			return nil, image.Point{}, fmt.Errorf("boxing text at pos %d: %w", n, err)
+			return nil, image.Point{}, fmt.Errorf("boxing text at line %d: %w", len(ls), err)
 		}
 		if l == nil {
 			break
 		}
-		if ni == 0 && len(rt) > n && len(l.Boxes()) == 0 {
-			return ls, p, nil
-		}
 		ls = append(ls, l)
-		n += ni
 		s := l.Size()
 		p.Y += s.Dy()
 	}

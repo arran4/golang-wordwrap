@@ -53,7 +53,7 @@ func main() {
 }
 
 func SaveFile(i wordwrap.Image, fn string) error {
-	os.MkdirAll("images", 0755)
+	_ = os.MkdirAll("images", 0755)
 	fi, err := os.Create(fn)
 	if err != nil {
 		return fmt.Errorf("file create: %w", err)

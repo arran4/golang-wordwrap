@@ -9,7 +9,6 @@ type FolderOption interface {
 
 type BoxerOption interface {
 	WrapperOption
-	FolderOption
 	ApplyBoxConfig(interface{})
 }
 
@@ -20,18 +19,17 @@ type WrapperOption interface {
 type boxerOptionFunc func(interface{})
 
 var _ BoxerOption = boxerOptionFunc(nil)
-var _ FolderOption = boxerOptionFunc(nil)
 var _ WrapperOption = boxerOptionFunc(nil)
 
 type addBoxConfig interface {
 	addBoxConfig(BoxerOption)
 }
 
-var _ addBoxConfig = (*SimpleLine)(nil)
+var _ addBoxConfig = (*SimpleWrapper)(nil)
 
 func (b boxerOptionFunc) ApplyWrapperConfig(wr interface{}) {
-	if fr, ok := wr.(addFoldConfig); ok {
-		fr.addFoldConfig(b)
+	if wr, ok := wr.(interface{ addBoxConfig(BoxerOption) }); ok {
+		wr.addBoxConfig(b)
 	} else {
 		log.Printf("can't apply")
 	}
@@ -39,13 +37,6 @@ func (b boxerOptionFunc) ApplyWrapperConfig(wr interface{}) {
 
 func (b boxerOptionFunc) ApplyBoxConfig(br interface{}) {
 	b(br)
-}
-func (b boxerOptionFunc) ApplyFoldConfig(fr interface{}) {
-	if fr, ok := fr.(interface{ addBoxConfig(BoxerOption) }); ok {
-		fr.addBoxConfig(b)
-	} else {
-		log.Printf("can't apply")
-	}
 }
 
 type folderOptionFunc func(interface{})
@@ -75,26 +66,30 @@ type wrapperOptionFunc func(interface{})
 
 var _ WrapperOption = wrapperOptionFunc(nil)
 
-type addWrapperConfig interface {
-	addWrapperConfig(WrapperOption)
-}
-
+//type addWrapperConfig interface {
+//	addWrapperConfig(WrapperOption)
+//}
+//
 func (f wrapperOptionFunc) ApplyWrapperConfig(fr interface{}) {
 	f(fr)
 }
 
 var BoxLine = folderOptionFunc(func(f interface{}) {
-	switch f := f.(type) {
-	case interface{ turnOnBox() }:
-		f.turnOnBox()
-	default:
-		log.Printf("can't apply")
+	if f, ok := f.(*SimpleFolder); ok {
+		f.lineOptions = append(f.lineOptions, func(line Line) {
+			switch line := line.(type) {
+			case interface{ turnOnBox() }:
+				line.turnOnBox()
+			default:
+				log.Printf("can't apply")
+			}
+		})
 	}
 })
 
 var BoxBox = boxerOptionFunc(func(f interface{}) {
-	if f, ok := f.(*simpleBoxer); ok {
-		f.PostBoxOptions = append(f.PostBoxOptions, func(box Box) {
+	if f, ok := f.(*SimpleBoxer); ok {
+		f.postBoxOptions = append(f.postBoxOptions, func(box Box) {
 			switch box := box.(type) {
 			case interface{ turnOnBox() }:
 				box.turnOnBox()
