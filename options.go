@@ -84,11 +84,15 @@ func (f wrapperOptionFunc) ApplyWrapperConfig(fr interface{}) {
 }
 
 var BoxLine = folderOptionFunc(func(f interface{}) {
-	switch f := f.(type) {
-	case interface{ turnOnBox() }:
-		f.turnOnBox()
-	default:
-		log.Printf("can't apply")
+	if f, ok := f.(*SimpleFolder); ok {
+		f.lineOptions = append(f.lineOptions, func(line Line) {
+			switch line := line.(type) {
+			case interface{ turnOnBox() }:
+				line.turnOnBox()
+			default:
+				log.Printf("can't apply")
+			}
+		})
 	}
 })
 

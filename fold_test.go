@@ -21,18 +21,15 @@ func TestSimpleFolder(t *testing.T) {
 	}
 	tests := []struct {
 		name      string
-		args      args
+		folder    Folder
 		wantLines []*WantedLine
 		wantErr   bool
 	}{
 		{
 			name: "just word that fits",
-			args: args{
-				boxer: &FixedWordWidthBoxer{
-					text: []rune("word that fits"),
-				},
-				container: image.Rect(0, 0, 6, 6),
-			},
+			folder: NewSimpleFolder(&FixedWordWidthBoxer{
+				text: []rune("word that fits"),
+			}, image.Rect(0, 0, 6, 6)),
 			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that", " ", "fits"},
@@ -43,12 +40,9 @@ func TestSimpleFolder(t *testing.T) {
 		},
 		{
 			name: "Empty",
-			args: args{
-				boxer: &FixedWordWidthBoxer{
-					text: []rune(""),
-				},
-				container: image.Rect(0, 0, 2, 5),
-			},
+			folder: NewSimpleFolder(&FixedWordWidthBoxer{
+				text: []rune(""),
+			}, image.Rect(0, 0, 2, 5)),
 			wantLines: []*WantedLine{
 				{
 					words: nil,
@@ -58,12 +52,9 @@ func TestSimpleFolder(t *testing.T) {
 		},
 		{
 			name: "word that folder over onto a new line",
-			args: args{
-				boxer: &FixedWordWidthBoxer{
-					text: []rune("word that folder over onto a new line"),
-				},
-				container: image.Rect(0, 0, 6, 5),
-			},
+			folder: NewSimpleFolder(&FixedWordWidthBoxer{
+				text: []rune("word that folder over onto a new line"),
+			}, image.Rect(0, 0, 6, 5)),
 			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that", " ", "folder"},
@@ -82,12 +73,9 @@ func TestSimpleFolder(t *testing.T) {
 		},
 		{
 			name: "eod is nil",
-			args: args{
-				boxer: &FixedWordWidthBoxer{
-					text: []rune("word that"),
-				},
-				container: image.Rect(0, 0, 6, 5),
-			},
+			folder: NewSimpleFolder(&FixedWordWidthBoxer{
+				text: []rune("word that"),
+			}, image.Rect(0, 0, 6, 5)),
 			wantLines: []*WantedLine{
 				{
 					words: []string{"word", " ", "that"},
@@ -101,7 +89,7 @@ func TestSimpleFolder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, wantWords := range tt.wantLines {
-				gotL, err := SimpleFolder(tt.args.boxer, tt.args.container, tt.args.Options...)
+				gotL, err := tt.folder.Next()
 				if (err != nil) != tt.wantErr {
 					t.Errorf("SimpleFolder() error = %v, wantErr %v", err, tt.wantErr)
 					return

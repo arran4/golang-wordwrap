@@ -51,11 +51,14 @@ func (sw *SimpleWrapper) ApplyOptions(opts []WrapperOption) {
 
 func (sw *SimpleWrapper) TextToRect(text string, r image.Rectangle, grf font.Face) ([]Line, image.Point, error) {
 	ls := make([]Line, 0)
-	rt := []rune(text)
 	p := r.Min
+	sb := NewSimpleBoxer([]rune(text), &font.Drawer{
+		Src:  image.NewUniform(image.Black),
+		Face: grf,
+	})
+	sf := NewSimpleFolder(sb, r, sw.FoldOptions...)
 	for p.Y < r.Dy() {
-		sb := NewSimpleBoxer(rt, &font.Drawer{Face: grf})
-		l, err := SimpleFolder(sb, r, sw.FoldOptions...)
+		l, err := sf.Next()
 		if err != nil {
 			return nil, image.Point{}, fmt.Errorf("boxing text at line %d: %w", len(ls), err)
 		}

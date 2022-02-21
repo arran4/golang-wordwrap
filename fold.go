@@ -15,7 +15,9 @@ type Line interface {
 	Boxes() []Box
 }
 
-type Folder func(b Boxer, pos int, feed []rune, options ...FolderOption) (Line, int, error)
+type Folder interface {
+	Next() (Line, error)
+}
 
 type SimpleLine struct {
 	boxes        []Box
@@ -58,19 +60,33 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	return nil
 }
 
-func SimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOption) (Line, error) {
+type SimpleFolder struct {
+	boxer       Boxer
+	container   image.Rectangle
+	lineOptions []func(Line)
+}
+
+func NewSimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOption) *SimpleFolder {
+	r := &SimpleFolder{
+		boxer:     boxer,
+		container: container,
+	}
+	for _, option := range options {
+		option.ApplyFoldConfig(r)
+	}
+	return r
+}
+
+func (sf *SimpleFolder) Next() (Line, error) {
 	n := 0
 	r := &SimpleLine{
 		boxes: []Box{},
 		size:  fixed.R(0, 0, 0, 0),
 	}
-	for _, option := range options {
-		option.ApplyFoldConfig(r)
-	}
 	var lastFont *font.Drawer
 	done := false
 	for !done {
-		b, i, err := boxer.Next()
+		b, i, err := sf.boxer.Next()
 		if err != nil {
 			return nil, fmt.Errorf("boxing at pos %d: %w", n-i, err)
 		}
@@ -85,14 +101,14 @@ func SimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOptio
 			a := b.AdvanceRect()
 			irdx := a.Ceil()
 			szdx := (r.size.Max.X - r.size.Min.X).Ceil()
-			if irdx+szdx >= container.Dx() {
+			if irdx+szdx >= sf.container.Dx() {
 				if b.Whitespace() {
 					b = &LineBreakBox{
 						fontDrawer: lastFont,
 					}
 					r.boxes = append(r.boxes, b)
 				} else {
-					boxer.Back(i)
+					sf.boxer.Back(i)
 					n -= i
 				}
 				done = true
@@ -120,6 +136,9 @@ func SimpleFolder(boxer Boxer, container image.Rectangle, options ...FolderOptio
 	}
 	if n == 0 {
 		return nil, nil
+	}
+	for _, option := range sf.lineOptions {
+		option(r)
 	}
 	return r, nil
 }
