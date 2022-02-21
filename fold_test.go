@@ -10,11 +10,6 @@ import (
 )
 
 func TestSimpleFolder(t *testing.T) {
-	type args struct {
-		boxer     Boxer
-		container image.Rectangle
-		Options   []FolderOption
-	}
 	type WantedLine struct {
 		words []string
 		N     int

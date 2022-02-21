@@ -66,10 +66,10 @@ type wrapperOptionFunc func(interface{})
 
 var _ WrapperOption = wrapperOptionFunc(nil)
 
-type addWrapperConfig interface {
-	addWrapperConfig(WrapperOption)
-}
-
+//type addWrapperConfig interface {
+//	addWrapperConfig(WrapperOption)
+//}
+//
 func (f wrapperOptionFunc) ApplyWrapperConfig(fr interface{}) {
 	f(fr)
 }
