@@ -71,22 +71,6 @@ func (f folderOptionFunc) ApplyFoldConfig(fr interface{}) {
 	f(fr)
 }
 
-var BoxLine = folderOptionFunc(func(f interface{}) {
-	switch f := f.(type) {
-	case interface{ turnOnBox() }:
-		f.turnOnBox()
-	default:
-		log.Printf("can't apply")
-	}
-})
-
-var BoxBox = boxerOptionFunc(func(f interface{}) {
-	switch f := f.(type) {
-	case interface{ turnOnBox() }:
-		f.turnOnBox()
-	}
-})
-
 type wrapperOptionFunc func(interface{})
 
 var _ WrapperOption = wrapperOptionFunc(nil)
@@ -98,3 +82,23 @@ type addWrapperConfig interface {
 func (f wrapperOptionFunc) ApplyWrapperConfig(fr interface{}) {
 	f(fr)
 }
+
+var BoxLine = folderOptionFunc(func(f interface{}) {
+	switch f := f.(type) {
+	case interface{ turnOnBox() }:
+		f.turnOnBox()
+	default:
+		log.Printf("can't apply")
+	}
+})
+
+var BoxBox = boxerOptionFunc(func(f interface{}) {
+	if f, ok := f.(*simpleBoxer); ok {
+		f.PostBoxOptions = append(f.PostBoxOptions, func(box Box) {
+			switch box := box.(type) {
+			case interface{ turnOnBox() }:
+				box.turnOnBox()
+			}
+		})
+	}
+})

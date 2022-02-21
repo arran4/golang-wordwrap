@@ -28,7 +28,15 @@ func IsLF(r rune) bool {
 	return r == '\n'
 }
 
+type simpleBoxer struct {
+	PostBoxOptions []func(Box)
+}
+
 func SimpleBoxer(fce font.Face, color image.Image, text []rune, options ...BoxerOption) (Box, int, error) {
+	sb := &simpleBoxer{}
+	for _, option := range options {
+		option.ApplyBoxConfig(sb)
+	}
 	n, rs, rmode := SimpleBoxerGrab(text)
 	var b Box
 	switch rmode {
@@ -58,8 +66,8 @@ func SimpleBoxer(fce font.Face, color image.Image, text []rune, options ...Boxer
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
 	}
-	for _, option := range options {
-		option.ApplyBoxConfig(b)
+	for _, option := range sb.PostBoxOptions {
+		option(b)
 	}
 	return b, n, nil
 }
