@@ -71,6 +71,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 		return nil, 0, nil
 	}
 	n, rs, rmode := sb.Grabber(sb.text[sb.n:])
+	sb.n += n
 	var b Box
 	switch rmode {
 	case RNIL:

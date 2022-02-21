@@ -20,15 +20,10 @@ type Folder interface {
 }
 
 type SimpleLine struct {
-	boxes        []Box
-	size         fixed.Rectangle26_6
-	height       fixed.Int26_6
-	boxLine      bool
-	boxerOptions []BoxerOption
-}
-
-func (sl *SimpleLine) addBoxConfig(bo BoxerOption) {
-	sl.boxerOptions = append(sl.boxerOptions, bo)
+	boxes   []Box
+	size    fixed.Rectangle26_6
+	height  fixed.Int26_6
+	boxLine bool
 }
 
 func (sl *SimpleLine) Boxes() []Box {

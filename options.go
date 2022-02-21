@@ -9,7 +9,6 @@ type FolderOption interface {
 
 type BoxerOption interface {
 	WrapperOption
-	FolderOption
 	ApplyBoxConfig(interface{})
 }
 
@@ -20,18 +19,17 @@ type WrapperOption interface {
 type boxerOptionFunc func(interface{})
 
 var _ BoxerOption = boxerOptionFunc(nil)
-var _ FolderOption = boxerOptionFunc(nil)
 var _ WrapperOption = boxerOptionFunc(nil)
 
 type addBoxConfig interface {
 	addBoxConfig(BoxerOption)
 }
 
-var _ addBoxConfig = (*SimpleLine)(nil)
+var _ addBoxConfig = (*SimpleWrapper)(nil)
 
 func (b boxerOptionFunc) ApplyWrapperConfig(wr interface{}) {
-	if fr, ok := wr.(addFoldConfig); ok {
-		fr.addFoldConfig(b)
+	if wr, ok := wr.(interface{ addBoxConfig(BoxerOption) }); ok {
+		wr.addBoxConfig(b)
 	} else {
 		log.Printf("can't apply")
 	}
@@ -39,13 +37,6 @@ func (b boxerOptionFunc) ApplyWrapperConfig(wr interface{}) {
 
 func (b boxerOptionFunc) ApplyBoxConfig(br interface{}) {
 	b(br)
-}
-func (b boxerOptionFunc) ApplyFoldConfig(fr interface{}) {
-	if fr, ok := fr.(interface{ addBoxConfig(BoxerOption) }); ok {
-		fr.addBoxConfig(b)
-	} else {
-		log.Printf("can't apply")
-	}
 }
 
 type folderOptionFunc func(interface{})

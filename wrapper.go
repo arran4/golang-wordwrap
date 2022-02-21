@@ -7,11 +7,12 @@ import (
 )
 
 type SimpleWrapper struct {
-	FoldOptions []FolderOption
+	folderOptions []FolderOption
+	boxerOptions  []BoxerOption
 }
 
 func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
-	sw.FoldOptions = append(sw.FoldOptions, option)
+	sw.folderOptions = append(sw.folderOptions, option)
 }
 
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
@@ -49,14 +50,18 @@ func (sw *SimpleWrapper) ApplyOptions(opts []WrapperOption) {
 	}
 }
 
+func (sw *SimpleWrapper) addBoxConfig(bo BoxerOption) {
+	sw.boxerOptions = append(sw.boxerOptions, bo)
+}
+
 func (sw *SimpleWrapper) TextToRect(text string, r image.Rectangle, grf font.Face) ([]Line, image.Point, error) {
 	ls := make([]Line, 0)
 	p := r.Min
 	sb := NewSimpleBoxer([]rune(text), &font.Drawer{
 		Src:  image.NewUniform(image.Black),
 		Face: grf,
-	})
-	sf := NewSimpleFolder(sb, r, sw.FoldOptions...)
+	}, sw.boxerOptions...)
+	sf := NewSimpleFolder(sb, r, sw.folderOptions...)
 	for p.Y < r.Dy() {
 		l, err := sf.Next()
 		if err != nil {

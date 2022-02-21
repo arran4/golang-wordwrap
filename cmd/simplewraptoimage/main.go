@@ -24,6 +24,8 @@ var (
 	fontsize    = flag.Float64("size", 16, "font size")
 	textsource  = flag.String("text", "-", "File in, or - for std input")
 	outfilename = flag.String("out", "out.png", "file to write to, in some cases this is ignored")
+	boxline     = flag.Bool("boxline", false, "Box the line")
+	boxbox      = flag.Bool("boxbox", false, "Box the box")
 )
 
 func init() {
@@ -42,7 +44,14 @@ func main() {
 	if err != nil {
 		log.Panicf("Text fetch error: %s", err)
 	}
-	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxLine, wordwrap.BoxBox); err != nil {
+	var opts []wordwrap.WrapperOption
+	if *boxline {
+		opts = append(opts, wordwrap.BoxLine)
+	}
+	if *boxbox {
+		opts = append(opts, wordwrap.BoxBox)
+	}
+	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, opts...); err != nil {
 		log.Panicf("Text wrap and draw error: %s", err)
 	}
 	outfn := *outfilename
