@@ -27,11 +27,11 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 
 func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
 	sw := &SimpleWrapper{}
+	sw.ApplyOptions(opts)
 	sw.sb = NewSimpleBoxer([]rune(text), &font.Drawer{
 		Src:  image.NewUniform(image.Black),
 		Face: grf,
 	}, sw.boxerOptions...)
-	sw.ApplyOptions(opts)
 	return sw
 }
 
