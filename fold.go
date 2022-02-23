@@ -94,8 +94,7 @@ func (sf *SimpleFolder) Next() (Line, error) {
 		size:       fixed.R(0, 0, 0, 0),
 		fontDrawer: sf.lastFontDrawer,
 	}
-	done := false
-	for !done {
+	for {
 		b, i, err := sf.boxer.Next()
 		if err != nil {
 			return nil, fmt.Errorf("boxing at pos %d: %w", n-i, err)
@@ -103,51 +102,14 @@ func (sf *SimpleFolder) Next() (Line, error) {
 		if b == nil {
 			break
 		}
-		n += i
-		m := b.MetricsRect()
-		fontDrawer := b.FontDrawer()
-		if fontDrawer != nil {
-			sf.lastFontDrawer = fontDrawer
-		} else {
-			fontDrawer = sf.lastFontDrawer
+		nn, done, err := sf.fitAddBox(n, i, b, r)
+		if err != nil {
+			return r, err
 		}
-		switch b.(type) {
-		case *SimpleBox:
-			a := b.AdvanceRect()
-			irdx := a.Ceil()
-			szdx := (r.size.Max.X - r.size.Min.X).Ceil()
-			if irdx+szdx >= sf.container.Dx() {
-				if b.Whitespace() {
-					b = &LineBreakBox{
-						fontDrawer: fontDrawer,
-					}
-					r.boxes = append(r.boxes, b)
-				} else {
-					sf.boxer.Back(i)
-					n -= i
-				}
-				done = true
-				//continue
-			}
-			r.size.Max.X += a
-		case *LineBreakBox:
-			done = true
-		default:
-			return nil, fmt.Errorf("unknown box at pos %d: %s", n-i, reflect.TypeOf(b))
+		n = nn
+		if done {
+			break
 		}
-		ac := -m.Ascent
-		if ac < r.size.Min.Y {
-			r.size.Min.Y = ac
-		}
-		dc := m.Descent
-		if dc > r.size.Max.Y {
-			r.size.Max.Y = dc
-		}
-		height := m.Ascent
-		if r.height < height {
-			r.height = height
-		}
-		r.boxes = append(r.boxes, b)
 	}
 	if n == 0 {
 		return nil, nil
@@ -156,6 +118,57 @@ func (sf *SimpleFolder) Next() (Line, error) {
 		option(r)
 	}
 	return r, nil
+}
+
+// fitAddBox fits if the box and if it does fit adds it. returns new array offset, a bool if it
+func (sf *SimpleFolder) fitAddBox(n int, i int, b Box, l *SimpleLine) (int, bool, error) {
+	done := false
+	n += i
+	m := b.MetricsRect()
+	fontDrawer := b.FontDrawer()
+	if fontDrawer != nil {
+		sf.lastFontDrawer = fontDrawer
+	} else {
+		fontDrawer = sf.lastFontDrawer
+	}
+	switch b.(type) {
+	case *SimpleBox:
+		a := b.AdvanceRect()
+		irdx := a.Ceil()
+		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
+		if irdx+szdx >= sf.container.Dx() {
+			if b.Whitespace() {
+				b = &LineBreakBox{
+					fontDrawer: fontDrawer,
+				}
+				l.boxes = append(l.boxes, b)
+			} else {
+				sf.boxer.Back(i)
+				n -= i
+			}
+			done = true
+			return n, done, nil
+		}
+		l.size.Max.X += a
+	case *LineBreakBox:
+		done = true
+	default:
+		return 0, true, fmt.Errorf("unknown box at pos %d: %s", n-i, reflect.TypeOf(b))
+	}
+	ac := -m.Ascent
+	if ac < l.size.Min.Y {
+		l.size.Min.Y = ac
+	}
+	dc := m.Descent
+	if dc > l.size.Max.Y {
+		l.size.Max.Y = dc
+	}
+	height := m.Ascent
+	if l.height < height {
+		l.height = height
+	}
+	l.boxes = append(l.boxes, b)
+	return n, done, nil
 }
 
 // Size is the size consumed of the line
