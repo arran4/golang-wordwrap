@@ -83,16 +83,33 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 	ls := make([]Line, 0)
 	p := r.Min
 	sf := NewSimpleFolder(sw.boxer, r, sw.fontDrawer, sw.folderOptions...)
-	for p.Y < r.Dy() {
-		l, err := sf.Next()
+	for (p.Y - r.Min.Y) <= r.Dy() {
+		l, err := sf.Next(r.Dy() - (p.Y - r.Min.Y))
 		if err != nil {
 			return nil, image.Point{}, fmt.Errorf("boxing text at line %d: %w", len(ls), err)
 		}
 		if l == nil {
 			break
 		}
-		ls = append(ls, l)
 		s := l.Size()
+		stop := false
+		switch sf.yOverflow {
+		case StrictBorders:
+			// Handled elsewhere
+		case DescentOverflow:
+			if (p.Y - r.Min.Y + l.YValue()) > r.Dy() {
+				sf.boxer.Push(l.Boxes()...)
+				stop = true
+			}
+		case FullOverflowDuplicate:
+			if (p.Y - r.Min.Y + s.Dy()) > r.Dy() {
+				sf.boxer.Push(l.Boxes()...)
+			}
+		}
+		if stop {
+			break
+		}
+		ls = append(ls, l)
 		p.Y += s.Dy()
 	}
 	sw.fontDrawer = sf.lastFontDrawer

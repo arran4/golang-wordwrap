@@ -84,7 +84,7 @@ func TestSimpleFolder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, wantWords := range tt.wantLines {
-				gotL, err := tt.folder.Next()
+				gotL, err := tt.folder.Next(7)
 				if (err != nil) != tt.wantErr {
 					t.Errorf("SimpleFolder() error = %v, wantErr %v", err, tt.wantErr)
 					return
@@ -118,6 +118,14 @@ type FixedWordWidthBoxer struct {
 	n    int
 }
 
+func (fwb *FixedWordWidthBoxer) Pos() int {
+	panic("implement me")
+}
+
+func (fwb *FixedWordWidthBoxer) Push(box ...Box) {
+	panic("implement me")
+}
+
 func (fwb *FixedWordWidthBoxer) HasNext() bool {
 	panic("implement me")
 }
@@ -141,7 +149,9 @@ func (fwb *FixedWordWidthBoxer) Next() (Box, int, error) {
 	case RNIL:
 		return nil, fwb.n, nil
 	case RCRLF:
-		b = &LineBreakBox{}
+		b = &LineBreakBox{
+			text: string(rs),
+		}
 	case RSimpleBox:
 		t := string(rs)
 		b = &SimpleBox{

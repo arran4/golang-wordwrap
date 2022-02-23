@@ -21,6 +21,10 @@ type Box interface {
 	DrawBox(i Image, y fixed.Int26_6)
 	// FontDrawer font used
 	FontDrawer() *font.Drawer
+	// Len the length of the buffer represented by the box
+	Len() int
+	// TextValue extracts the text value
+	TextValue() string
 }
 
 // Boxer is the tokenizer that splits the line into it's literal components
@@ -35,6 +39,9 @@ type Boxer interface {
 	Back(i int)
 	// HasNext if there are any unprocessed runes
 	HasNext() bool
+	// Push puts a box back on to the cache stack
+	Push(box ...Box)
+	Pos() int
 }
 
 // IsCR Is a carriage return
@@ -55,8 +62,10 @@ type SimpleBoxer struct {
 	n              int
 	fontDrawer     *font.Drawer
 	Grabber        func(text []rune) (int, []rune, int)
+	cacheQueue     []Box
 }
 
+// Ensures that SimpleBoxer fits model
 var _ Boxer = (*SimpleBoxer)(nil)
 
 // NewSimpleBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
@@ -74,9 +83,18 @@ func NewSimpleBoxer(text []rune, drawer *font.Drawer, options ...BoxerOption) *S
 	return sb
 }
 
+// Pos current parser position.
+func (sb *SimpleBoxer) Pos() int {
+	r := sb.n
+	for _, e := range sb.cacheQueue {
+		r -= e.Len()
+	}
+	return r
+}
+
 // HasNext unprocessed bytes exist
 func (sb *SimpleBoxer) HasNext() bool {
-	return sb.n < len(sb.text)
+	return len(sb.cacheQueue) > 0 || sb.n < len(sb.text)
 }
 
 // SetFontDrawer Changes the default font
@@ -94,8 +112,18 @@ func (sb *SimpleBoxer) FontDrawer() *font.Drawer {
 	return sb.fontDrawer
 }
 
+// Push puts a box back on to the cache stack
+func (sb *SimpleBoxer) Push(box ...Box) {
+	sb.cacheQueue = append(sb.cacheQueue, box...)
+}
+
 // Next gets the next word in a Box
 func (sb *SimpleBoxer) Next() (Box, int, error) {
+	if len(sb.cacheQueue) > 0 {
+		cb := sb.cacheQueue[0]
+		sb.cacheQueue = sb.cacheQueue[1:]
+		return cb, 0, nil
+	}
 	if len(sb.text) == 0 {
 		return nil, 0, nil
 	}
@@ -108,6 +136,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 	case RCRLF:
 		b = &LineBreakBox{
 			fontDrawer: sb.fontDrawer,
+			text:       string(rs),
 		}
 	case RSimpleBox:
 		t := string(rs)
@@ -131,6 +160,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 	return b, n, nil
 }
 
+// Matches objects
 const (
 	RSimpleBox = iota
 	RCRLF
@@ -202,6 +232,14 @@ type SimpleBox struct {
 	boxBox   bool
 }
 
+func (sb *SimpleBox) TextValue() string {
+	return sb.Contents
+}
+
+func (sb *SimpleBox) Len() int {
+	return len(sb.Contents)
+}
+
 // FontDrawer font used
 func (sb *SimpleBox) FontDrawer() *font.Drawer {
 	return sb.drawer
@@ -241,9 +279,20 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 	}
 }
 
-// LineBreakBox represents a natural or a effective line break
+// LineBreakBox represents a natural or an effective line break
 type LineBreakBox struct {
 	fontDrawer *font.Drawer
+	text       string
+}
+
+// TextValue returns the text suppressed by the line break (probably a white space including a \r\n)
+func (sb *LineBreakBox) TextValue() string {
+	return sb.text
+}
+
+// Len the length of the buffer represented by the box
+func (sb *LineBreakBox) Len() int {
+	return len(sb.text)
 }
 
 // FontDrawer font used

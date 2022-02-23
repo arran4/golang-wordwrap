@@ -1,6 +1,7 @@
 package wordwrap
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
@@ -13,29 +14,51 @@ import (
 type Line interface {
 	// Size the line consumes
 	Size() image.Rectangle
+	// DrawLine draws the line
 	DrawLine(i Image) error
 	// Boxes are the lines contents
 	Boxes() []Box
+	// TextValue extracts the text value
+	TextValue() string
+	// YValue where the baseline is
+	YValue() int
 }
 
 // Folder is the literal line sizer & producer function
 type Folder interface {
 	// Next line
-	Next() (Line, error)
+	Next(yspace int) (Line, error)
 }
 
 // SimpleLine is a simple implementation to prevent name space names later. Represents a line
 type SimpleLine struct {
-	boxes      []Box
-	size       fixed.Rectangle26_6
-	height     fixed.Int26_6
-	boxLine    bool
-	fontDrawer *font.Drawer
+	boxes            []Box
+	size             fixed.Rectangle26_6
+	yoffset          fixed.Int26_6
+	boxLine          bool
+	fontDrawer       *font.Drawer
+	pageBreakChevron image.Image
 }
+
+var _ Line = (*SimpleLine)(nil)
 
 // Boxes are the lines contents
 func (sl *SimpleLine) Boxes() []Box {
 	return sl.boxes
+}
+
+// YValue where the baseline is
+func (sl *SimpleLine) YValue() int {
+	return sl.yoffset.Ceil()
+}
+
+// TextValue extracts the text value of the line
+func (sl *SimpleLine) TextValue() string {
+	b := bytes.NewBuffer(nil)
+	for _, e := range sl.boxes {
+		b.WriteString(e.TextValue())
+	}
+	return b.String()
 }
 
 // turnOnBox turns on drawing a box around the used portion of the line
@@ -56,7 +79,7 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
-		b.DrawBox(subImage, sl.height)
+		b.DrawBox(subImage, sl.yoffset)
 		r.Min.X = r.Max.X
 	}
 	if sl.boxLine {
@@ -65,12 +88,25 @@ func (sl *SimpleLine) DrawLine(i Image) error {
 	return nil
 }
 
+// OverflowMode Ways of describing overflow
+type OverflowMode int
+
+const (
+	// StrictBorders default overflow mode. Do not allow
+	StrictBorders OverflowMode = iota
+	// DescentOverflow Allow some decent overflow. Characters such as yjqp will overflow
+	DescentOverflow
+	// FullOverflowDuplicate Will allow the full line to overflow, and duplicate line next run
+	FullOverflowDuplicate
+)
+
 // SimpleFolder is a simple Folder
 type SimpleFolder struct {
 	boxer          Boxer
 	container      image.Rectangle
 	lineOptions    []func(Line)
 	lastFontDrawer *font.Drawer
+	yOverflow      OverflowMode
 }
 
 // NewSimpleFolder constructs a SimpleFolder applies options provided.
@@ -87,8 +123,7 @@ func NewSimpleFolder(boxer Boxer, container image.Rectangle, lastFontDrawer *fon
 }
 
 // Next generates the next life if space
-func (sf *SimpleFolder) Next() (Line, error) {
-	n := 0
+func (sf *SimpleFolder) Next(yspace int) (Line, error) {
 	r := &SimpleLine{
 		boxes:      []Box{},
 		size:       fixed.R(0, 0, 0, 0),
@@ -97,21 +132,30 @@ func (sf *SimpleFolder) Next() (Line, error) {
 	for {
 		b, i, err := sf.boxer.Next()
 		if err != nil {
-			return nil, fmt.Errorf("boxing at pos %d: %w", n-i, err)
+			return nil, fmt.Errorf("boxing at pos %d: %w", sf.boxer.Pos()-i, err)
 		}
 		if b == nil {
 			break
 		}
-		nn, done, err := sf.fitAddBox(n, i, b, r)
+		if r.Size().Dy() < b.MetricsRect().Height.Ceil() {
+			switch sf.yOverflow {
+			case StrictBorders:
+				if b.MetricsRect().Height.Ceil() > yspace {
+					sf.boxer.Push(r.boxes...)
+					sf.boxer.Push(b)
+					return nil, nil
+				}
+			}
+		}
+		done, err := sf.fitAddBox(i, b, r)
 		if err != nil {
 			return r, err
 		}
-		n = nn
 		if done {
 			break
 		}
 	}
-	if n == 0 {
+	if len(r.boxes) == 0 {
 		return nil, nil
 	}
 	for _, option := range sf.lineOptions {
@@ -121,9 +165,8 @@ func (sf *SimpleFolder) Next() (Line, error) {
 }
 
 // fitAddBox fits if the box and if it does fit adds it. returns new array offset, a bool if it
-func (sf *SimpleFolder) fitAddBox(n int, i int, b Box, l *SimpleLine) (int, bool, error) {
+func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 	done := false
-	n += i
 	m := b.MetricsRect()
 	fontDrawer := b.FontDrawer()
 	if fontDrawer != nil {
@@ -136,24 +179,25 @@ func (sf *SimpleFolder) fitAddBox(n int, i int, b Box, l *SimpleLine) (int, bool
 		a := b.AdvanceRect()
 		irdx := a.Ceil()
 		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
-		if irdx+szdx >= sf.container.Dx() {
+		cdx := sf.container.Dx()
+		if irdx+szdx >= cdx {
 			if b.Whitespace() {
 				b = &LineBreakBox{
 					fontDrawer: fontDrawer,
+					text:       b.TextValue(),
 				}
 				l.boxes = append(l.boxes, b)
 			} else {
-				sf.boxer.Back(i)
-				n -= i
+				sf.boxer.Push(b)
 			}
 			done = true
-			return n, done, nil
+			return done, nil
 		}
 		l.size.Max.X += a
 	case *LineBreakBox:
 		done = true
 	default:
-		return 0, true, fmt.Errorf("unknown box at pos %d: %s", n-i, reflect.TypeOf(b))
+		return true, fmt.Errorf("unknown box at pos %d: %s", sf.boxer.Pos()-i, reflect.TypeOf(b))
 	}
 	ac := -m.Ascent
 	if ac < l.size.Min.Y {
@@ -164,11 +208,11 @@ func (sf *SimpleFolder) fitAddBox(n int, i int, b Box, l *SimpleLine) (int, bool
 		l.size.Max.Y = dc
 	}
 	height := m.Ascent
-	if l.height < height {
-		l.height = height
+	if l.yoffset < height {
+		l.yoffset = height
 	}
 	l.boxes = append(l.boxes, b)
-	return n, done, nil
+	return done, nil
 }
 
 // Size is the size consumed of the line
@@ -180,4 +224,9 @@ func (sl *SimpleLine) Size() image.Rectangle {
 			Y: (sl.size.Max.Y - sl.size.Min.Y).Ceil(),
 		},
 	}
+}
+
+// Size is the size consumed of the line
+func (sl *SimpleLine) setPageBreakChevron(i image.Image) {
+	sl.pageBreakChevron = i
 }
