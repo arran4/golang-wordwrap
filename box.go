@@ -6,6 +6,8 @@ import (
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
+	"image"
+	"image/draw"
 	"unicode"
 )
 
@@ -316,4 +318,56 @@ func (sb *LineBreakBox) MetricsRect() font.Metrics {
 // Whitespace if this is a white space or not
 func (sb *LineBreakBox) Whitespace() bool {
 	return true
+}
+
+// ImageBox is a box that contains an image
+type ImageBox struct {
+	I image.Image
+}
+
+// Interface enforcement
+var _ Box = (*ImageBox)(nil)
+
+// AdvanceRect width of text
+func (ib *ImageBox) AdvanceRect() fixed.Int26_6 {
+	return fixed.I(ib.I.Bounds().Dx())
+}
+
+// MetricsRect all other font details of text
+func (ib *ImageBox) MetricsRect() font.Metrics {
+	return font.Metrics{
+		Ascent: fixed.I(ib.I.Bounds().Dy()),
+	}
+}
+
+// Whitespace if this is a white space or not
+func (ib *ImageBox) Whitespace() bool {
+	return false
+}
+
+// DrawBox renders object
+func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6) {
+	draw.Draw(i, i.Bounds(), ib.I, ib.I.Bounds().Min, draw.Over)
+}
+
+// FontDrawer font used
+func (ib *ImageBox) FontDrawer() *font.Drawer {
+	return nil
+}
+
+// Len the length of the buffer represented by the box
+func (ib *ImageBox) Len() int {
+	return 0
+}
+
+// TextValue returns the text suppressed by the line break (probably a white space including a \r\n)
+func (ib *ImageBox) TextValue() string {
+	return ""
+}
+
+// NewImageBox constructs a new ImageBox
+func NewImageBox(i image.Image) *ImageBox {
+	return &ImageBox{
+		I: i,
+	}
 }

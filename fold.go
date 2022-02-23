@@ -32,12 +32,11 @@ type Folder interface {
 
 // SimpleLine is a simple implementation to prevent name space names later. Represents a line
 type SimpleLine struct {
-	boxes            []Box
-	size             fixed.Rectangle26_6
-	yoffset          fixed.Int26_6
-	boxLine          bool
-	fontDrawer       *font.Drawer
-	pageBreakChevron image.Image
+	boxes      []Box
+	size       fixed.Rectangle26_6
+	yoffset    fixed.Int26_6
+	boxLine    bool
+	fontDrawer *font.Drawer
 }
 
 var _ Line = (*SimpleLine)(nil)
@@ -107,6 +106,8 @@ type SimpleFolder struct {
 	lineOptions    []func(Line)
 	lastFontDrawer *font.Drawer
 	yOverflow      OverflowMode
+	// Last object on the last line before a page break if it isn't the last page
+	pageBreakBox Box
 }
 
 // NewSimpleFolder constructs a SimpleFolder applies options provided.
@@ -137,6 +138,9 @@ func (sf *SimpleFolder) Next(yspace int) (Line, error) {
 		if b == nil {
 			break
 		}
+
+		sf.pageBreakBox
+
 		if r.Size().Dy() < b.MetricsRect().Height.Ceil() {
 			switch sf.yOverflow {
 			case StrictBorders:
@@ -227,6 +231,6 @@ func (sl *SimpleLine) Size() image.Rectangle {
 }
 
 // Size is the size consumed of the line
-func (sl *SimpleLine) setPageBreakChevron(i image.Image) {
-	sl.pageBreakChevron = i
+func (sf *SimpleFolder) setPageBreakChevron(i image.Image) {
+	sf.pageBreakBox = NewImageBox(i)
 }
