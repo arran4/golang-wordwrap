@@ -73,7 +73,7 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 						return
 					}
 				}
-				if got == nil || len(got) == 0 {
+				if len(got) == 0 {
 					break
 				}
 				var actualLines []string
