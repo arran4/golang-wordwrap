@@ -71,19 +71,19 @@ Wrap is just a container object for ease of use.
 How do I use this to draw text in the simplest possible way?
 
 ```go
-	i := image.NewRGBA(image.Rect(0, 0, *width, *height))
-	gr, err := OpenFont(*fontname)
-	if err != nil {
-		log.Panicf("Error opening font %s: %s", *fontname, err)
-	}
-	grf := GetFontFace(*fontsize, *dpi, gr)
-	text, err := GetText(*textsource)
-	if err != nil {
-		log.Panicf("Text fetch error: %s", err)
-	}
-	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, options); err != nil {
-		log.Panicf("Text wrap and draw error: %s", err)
-	}
+    i := image.NewRGBA(image.Rect(0, 0, *width, *height))
+    gr, err := OpenFont(*fontname)
+    if err != nil {
+        log.Panicf("Error opening font %s: %s", *fontname, err)
+    }
+    grf := GetFontFace(*fontsize, *dpi, gr)
+    text, err := GetText(*textsource)
+    if err != nil {
+        log.Panicf("Text fetch error: %s", err)
+    }
+    if err := wordwrap.SimpleWrapTextToImage(text, i, grf, options); err != nil {
+        log.Panicf("Text wrap and draw error: %s", err)
+    }
 ```
 
 Note:
@@ -94,16 +94,16 @@ Note:
 You could also do it in 2 steps, this provides the rectangles incase you wanted to make a word clickable.
 
 ```go
-	i := image.NewRGBA(image.Rect(0, 0, *width, *height))
-	gr, err := OpenFont(*fontname)
-	if err != nil {
-		log.Panicf("Error opening font %s: %s", *fontname, err)
-	}
-	grf := GetFontFace(*fontsize, *dpi, gr)
-	text, err := GetText(*textsource)
-	if err != nil {
-		log.Panicf("Text fetch error: %s", err)
-	}
+    i := image.NewRGBA(image.Rect(0, 0, *width, *height))
+    gr, err := OpenFont(*fontname)
+    if err != nil {
+        log.Panicf("Error opening font %s: %s", *fontname, err)
+    }
+    grf := GetFontFace(*fontsize, *dpi, gr)
+    text, err := GetText(*textsource)
+    if err != nil {
+        log.Panicf("Text fetch error: %s", err)
+    }
     target := image.Rect(350,44,592, 209)
     sw, lines, _, err := wordwrap.SimpleWrapTextToRect(text, target, grf)
     if err != nil {
