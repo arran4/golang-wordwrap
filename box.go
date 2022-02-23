@@ -33,6 +33,8 @@ type Boxer interface {
 	FontDrawer() *font.Drawer
 	// Back goes back i spaces (ie unreads)
 	Back(i int)
+	// HasNext if there are any unprocessed runes
+	HasNext() bool
 }
 
 // IsCR Is a carriage return
@@ -55,6 +57,8 @@ type SimpleBoxer struct {
 	Grabber        func(text []rune) (int, []rune, int)
 }
 
+var _ Boxer = (*SimpleBoxer)(nil)
+
 // NewSimpleBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
 // the calling Folder that. Putting the elements in the correct Box.
 func NewSimpleBoxer(text []rune, drawer *font.Drawer, options ...BoxerOption) *SimpleBoxer {
@@ -68,6 +72,11 @@ func NewSimpleBoxer(text []rune, drawer *font.Drawer, options ...BoxerOption) *S
 		option.ApplyBoxConfig(sb)
 	}
 	return sb
+}
+
+// HasNext unprocessed bytes exist
+func (sb *SimpleBoxer) HasNext() bool {
+	return sb.n < len(sb.text)
 }
 
 // SetFontDrawer Changes the default font

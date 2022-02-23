@@ -98,3 +98,8 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 	sw.fontDrawer = sf.lastFontDrawer
 	return ls, p, nil
 }
+
+// HasNext are there any unprocessed bytes in the boxer
+func (sw *SimpleWrapper) HasNext() bool {
+	return sw.boxer.HasNext()
+}
