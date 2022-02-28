@@ -113,8 +113,12 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 		p.Y += s.Dy()
 	}
 	if sf.pageBreakBox != nil && len(ls) > 0 && sf.boxer.HasNext() {
-		if err := ls[len(ls)-1].PopSpaceFor(sf, r, &PageBreakBox{Box: sf.pageBreakBox}); err != nil {
+		line := ls[len(ls)-1]
+		if err := line.PopSpaceFor(sf, r, &PageBreakBox{Box: sf.pageBreakBox}); err != nil {
 			return nil, image.Point{}, err
+		}
+		if len(line.Boxes()) == 1 {
+			return nil, image.Point{}, fmt.Errorf("page break too big or rect too small")
 		}
 	}
 	sw.fontDrawer = sf.lastFontDrawer

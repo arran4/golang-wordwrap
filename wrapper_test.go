@@ -18,8 +18,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 	}{
 		{
 			name:          "Simple one page one line test",
-			SimpleWrapper: NewSimpleWrapper("Testing this!", FontFaceForTest(t)),
-			r:             SpaceFor(FontFaceForTest(t), "Testing this!"),
+			SimpleWrapper: NewSimpleWrapper("Testing this!", FontFace16ForTest(t)),
+			r:             SpaceFor(FontFace16ForTest(t), "Testing this!"),
 			wantPages: [][]string{
 				{"Testing this!"},
 			},
@@ -27,8 +27,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name:          "Simple one page two line test",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFaceForTest(t)),
-			r:             SpaceFor(FontFaceForTest(t), "Testing this!", "Testing this!"),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t)),
+			r:             SpaceFor(FontFace16ForTest(t), "Testing this!", "Testing this!"),
 			wantPages: [][]string{
 				{
 					"Testing this! ",
@@ -39,8 +39,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name:          "Simple two page two identical lines no extra space",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFaceForTest(t)),
-			r:             SpaceFor(FontFaceForTest(t), "Testing this!"),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t)),
+			r:             SpaceFor(FontFace16ForTest(t), "Testing this!"),
 			wantPages: [][]string{
 				{"Testing this! "},
 				{"Testing this!"},
@@ -49,8 +49,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name:          "Simple two page one line test but there was almost space for 2 lines",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFaceForTest(t)),
-			r:             Shrink(SpaceFor(FontFaceForTest(t), "Testing this!"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t)),
+			r:             Shrink(SpaceFor(FontFace16ForTest(t), "Testing this!"), image.Pt(0, 4)),
 			wantPages: [][]string{
 				{
 					"Testing this! ",
@@ -64,9 +64,39 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		{
 			name: "Simple two page one line test with a continue box on the first one but otherwise would be " +
 				"the first word of the 2nd line. Unicode",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFaceForTest(t),
-				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFaceForTest(t), "↵"))),
-			r: Shrink(SpaceFor(FontFaceForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16ForTest(t), "↵"))),
+			r: Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
+			wantPages: [][]string{
+				{
+					"Testing this! ↵",
+				},
+				{
+					"Testing this!",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Page break too big",
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16ForTest(t), "↵↵↵↵↵↵↵↵↵↵↵"))),
+			r: Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
+			wantPages: [][]string{
+				{
+					"Testing this! ↵",
+				},
+				{
+					"Testing this!",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Page Break two page one line test, page break pushes 2nd line into next box",
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24ForTest(t), "↵"))),
+			r: Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! ↵↵", "Testing this! ↵↵"), image.Pt(0, 4)),
 			wantPages: [][]string{
 				{
 					"Testing this! ↵",
