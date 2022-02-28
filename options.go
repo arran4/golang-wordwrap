@@ -1,7 +1,6 @@
 package wordwrap
 
 import (
-	"image"
 	"log"
 )
 
@@ -118,19 +117,15 @@ var BoxLine = folderOptionFunc(func(f interface{}) {
 	}
 })
 
-// PageBreakBox is a FolderOption that tells the Liner to add a chevron image to the end of every text block that continues
+// NewPageBreakBox is a FolderOption that tells the Liner to add a chevron image to the end of every text block that continues
 // past the given rect.
-func PageBreakBox(i image.Image) WrapperOption {
+func NewPageBreakBox(b Box) WrapperOption {
 	return folderOptionFunc(func(f interface{}) {
-		if f, ok := f.(*SimpleFolder); ok {
-			f.lineOptions = append(f.lineOptions, func(line Line) {
-				switch line := line.(type) {
-				case interface{ setPageBreakChevron(i image.Image) }:
-					line.setPageBreakChevron(i)
-				default:
-					log.Printf("can't apply")
-				}
-			})
+		switch f := f.(type) {
+		case interface{ setPageBreakBox(b Box) }:
+			f.setPageBreakBox(b)
+		default:
+			log.Printf("can't apply")
 		}
 	})
 }

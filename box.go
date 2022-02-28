@@ -43,7 +43,10 @@ type Boxer interface {
 	HasNext() bool
 	// Push puts a box back on to the cache stack
 	Push(box ...Box)
+	// Pos text pos
 	Pos() int
+	// Unshift basically is Push but to the start
+	Unshift(b ...Box)
 }
 
 // IsCR Is a carriage return
@@ -119,6 +122,11 @@ func (sb *SimpleBoxer) Push(box ...Box) {
 	sb.cacheQueue = append(sb.cacheQueue, box...)
 }
 
+// Unshift basically is Push but to the start
+func (sb *SimpleBoxer) Unshift(box ...Box) {
+	sb.cacheQueue = append(append(make([]Box, 0, len(box)+len(sb.cacheQueue)), box...), sb.cacheQueue...)
+}
+
 // Next gets the next word in a Box
 func (sb *SimpleBoxer) Next() (Box, int, error) {
 	if len(sb.cacheQueue) > 0 {
@@ -132,29 +140,25 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 	n, rs, rmode := sb.Grabber(sb.text[sb.n:])
 	sb.n += n
 	var b Box
+	drawer := sb.fontDrawer
 	switch rmode {
 	case RNIL:
 		return nil, n, nil
-	case RCRLF:
-		b = &LineBreakBox{
-			fontDrawer: sb.fontDrawer,
-			text:       string(rs),
-		}
-	case RSimpleBox:
+	case RSimpleBox, RCRLF:
 		t := string(rs)
-		if sb.fontDrawer == nil {
-			return nil, 0, errors.New("font drawer not provided")
-		}
-		ttb, a := sb.fontDrawer.BoundString(t)
-		b = &SimpleBox{
-			drawer:   sb.fontDrawer,
-			Contents: t,
-			Bounds:   ttb,
-			Advance:  a,
-			Metrics:  sb.fontDrawer.Face.Metrics(),
+		var err error
+		b, err = NewSimpleTextBox(drawer, t)
+		if err != nil {
+			return nil, 0, err
 		}
 	default:
 		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
+	}
+	switch rmode {
+	case RCRLF:
+		b = &LineBreakBox{
+			Box: b,
+		}
 	}
 	for _, option := range sb.postBoxOptions {
 		option(b)
@@ -224,8 +228,8 @@ func Once(f func(r rune) bool) func(rune) bool {
 	}
 }
 
-// SimpleBox represents an indivisible series of characters.
-type SimpleBox struct {
+// SimpleTextBox represents an indivisible series of characters.
+type SimpleTextBox struct {
 	Contents string
 	Bounds   fixed.Rectangle26_6
 	drawer   *font.Drawer
@@ -234,41 +238,59 @@ type SimpleBox struct {
 	boxBox   bool
 }
 
-func (sb *SimpleBox) TextValue() string {
+// NewSimpleTextBox constructor
+func NewSimpleTextBox(drawer *font.Drawer, t string) (Box, error) {
+	if drawer == nil {
+		return nil, errors.New("font drawer not provided")
+	}
+	ttb, a := drawer.BoundString(t)
+	b := &SimpleTextBox{
+		drawer:   drawer,
+		Contents: t,
+		Bounds:   ttb,
+		Advance:  a,
+		Metrics:  drawer.Face.Metrics(),
+	}
+	return b, nil
+}
+
+// TextValue stored value of the box
+func (sb *SimpleTextBox) TextValue() string {
 	return sb.Contents
 }
 
-func (sb *SimpleBox) Len() int {
+// Len is the string length of the contents of the box
+func (sb *SimpleTextBox) Len() int {
 	return len(sb.Contents)
 }
 
 // FontDrawer font used
-func (sb *SimpleBox) FontDrawer() *font.Drawer {
+func (sb *SimpleTextBox) FontDrawer() *font.Drawer {
 	return sb.drawer
 }
 
 // turnOnBox draws a box around the box
-func (sb *SimpleBox) turnOnBox() {
+func (sb *SimpleTextBox) turnOnBox() {
 	sb.boxBox = true
 }
 
 // AdvanceRect width of text
-func (sb *SimpleBox) AdvanceRect() fixed.Int26_6 {
+func (sb *SimpleTextBox) AdvanceRect() fixed.Int26_6 {
 	return sb.Advance
 }
 
 // MetricsRect all other font details of text
-func (sb *SimpleBox) MetricsRect() font.Metrics {
+func (sb *SimpleTextBox) MetricsRect() font.Metrics {
 	return sb.Metrics
 }
 
 // Whitespace if this is a white space or not
-func (sb *SimpleBox) Whitespace() bool {
+func (sb *SimpleTextBox) Whitespace() bool {
 	return sb.Contents == "" || unicode.IsSpace(rune(sb.Contents[0]))
 }
 
 // DrawBox renders object
-func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
+func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6) {
 	sb.drawer.Dst = i
 	b := i.Bounds()
 	sb.drawer.Dot = fixed.Point26_6{
@@ -283,23 +305,7 @@ func (sb *SimpleBox) DrawBox(i Image, y fixed.Int26_6) {
 
 // LineBreakBox represents a natural or an effective line break
 type LineBreakBox struct {
-	fontDrawer *font.Drawer
-	text       string
-}
-
-// TextValue returns the text suppressed by the line break (probably a white space including a \r\n)
-func (sb *LineBreakBox) TextValue() string {
-	return sb.text
-}
-
-// Len the length of the buffer represented by the box
-func (sb *LineBreakBox) Len() int {
-	return len(sb.text)
-}
-
-// FontDrawer font used
-func (sb *LineBreakBox) FontDrawer() *font.Drawer {
-	return sb.fontDrawer
+	Box
 }
 
 // DrawBox renders object
@@ -310,14 +316,9 @@ func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
 	return fixed.Int26_6(0)
 }
 
-// MetricsRect all other font details of text
-func (sb *LineBreakBox) MetricsRect() font.Metrics {
-	return sb.fontDrawer.Face.Metrics()
-}
-
-// Whitespace if this is a white space or not
-func (sb *LineBreakBox) Whitespace() bool {
-	return true
+// PageBreakBox represents a natural or an effective page break
+type PageBreakBox struct {
+	Box
 }
 
 // ImageBox is a box that contains an image

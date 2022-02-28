@@ -61,6 +61,22 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Simple two page one line test with a continue box on the first one but otherwise would be " +
+				"the first word of the 2nd line. Unicode",
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFaceForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFaceForTest(t), "↵"))),
+			r: Shrink(SpaceFor(FontFaceForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
+			wantPages: [][]string{
+				{
+					"Testing this! ↵",
+				},
+				{
+					"Testing this!",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,6 +103,17 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			}
 		})
 	}
+}
+
+func NewSimpleTextBoxForTest(t *testing.T, ff font.Face, s string) Box {
+	d := &font.Drawer{
+		Face: ff,
+	}
+	b, err := NewSimpleTextBox(d, s)
+	if err != nil {
+		t.Fatalf("Error creating box: %s", err)
+	}
+	return b
 }
 
 func Shrink(spaceFor image.Rectangle, pt image.Point) image.Rectangle {

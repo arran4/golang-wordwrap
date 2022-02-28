@@ -112,6 +112,11 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 		ls = append(ls, l)
 		p.Y += s.Dy()
 	}
+	if sf.pageBreakBox != nil && len(ls) > 0 && sf.boxer.HasNext() {
+		if err := ls[len(ls)-1].PopSpaceFor(sf, r, &PageBreakBox{Box: sf.pageBreakBox}); err != nil {
+			return nil, image.Point{}, err
+		}
+	}
 	sw.fontDrawer = sf.lastFontDrawer
 	return ls, p, nil
 }

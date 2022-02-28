@@ -234,7 +234,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			})
 			b, n, err := sb.Next()
 			if tt.wantSimpleBox {
-				sb, ok := b.(*SimpleBox)
+				sb, ok := b.(*SimpleTextBox)
 				if ok {
 					if !reflect.DeepEqual(sb.Contents, tt.wantBoxString) {
 						t.Errorf("BoxNextWord()[0].Contents b = %v, wantBoxString %v", sb.Contents, tt.wantBoxString)
