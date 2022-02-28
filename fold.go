@@ -233,8 +233,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 	fontDrawer := b.FontDrawer()
 	if fontDrawer != nil {
 		sf.lastFontDrawer = fontDrawer
-	} else {
-		fontDrawer = sf.lastFontDrawer
 	}
 	a := b.AdvanceRect()
 	switch b.(type) {
