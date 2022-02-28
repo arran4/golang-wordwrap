@@ -337,7 +337,7 @@ func (ib *ImageBox) AdvanceRect() fixed.Int26_6 {
 // MetricsRect all other font details of text
 func (ib *ImageBox) MetricsRect() font.Metrics {
 	return font.Metrics{
-		Ascent: fixed.I(ib.I.Bounds().Dy()),
+		Height: fixed.I(ib.I.Bounds().Dy()),
 	}
 }
 

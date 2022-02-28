@@ -10,7 +10,7 @@ import (
 )
 
 func TestSimpleBoxer_BoxNextWord(t *testing.T) {
-	grf := FontFace16ForTest(t)
+	grf := FontFace16DPI180ForTest(t)
 	type args struct {
 		fce   font.Face
 		color image.Image
@@ -266,7 +266,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 	}
 }
 
-func FontFace16ForTest(t *testing.T) font.Face {
+func FontFace16DPI180ForTest(t *testing.T) font.Face {
 	gr, err := util.OpenFont("goregular")
 	if err != nil {
 		t.Errorf("Error opening font %s: %s", "goregular", err)
@@ -275,7 +275,16 @@ func FontFace16ForTest(t *testing.T) font.Face {
 	return grf
 }
 
-func FontFace24ForTest(t *testing.T) font.Face {
+func FontFace16DPI75ForTest(t *testing.T) font.Face {
+	gr, err := util.OpenFont("goregular")
+	if err != nil {
+		t.Errorf("Error opening font %s: %s", "goregular", err)
+	}
+	grf := util.GetFontFace(16, 75, gr)
+	return grf
+}
+
+func FontFace24DPI180ForTest(t *testing.T) font.Face {
 	gr, err := util.OpenFont("goregular")
 	if err != nil {
 		t.Errorf("Error opening font %s: %s", "goregular", err)

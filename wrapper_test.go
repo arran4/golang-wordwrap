@@ -1,12 +1,25 @@
 package wordwrap
 
 import (
+	"bytes"
+	_ "embed"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
+	"image/png"
 	"testing"
 )
+
+var (
+	//go:embed "testdata/chevron.png"
+	chevronImageBytes []byte
+)
+
+func chevronImage() Image {
+	i, _ := png.Decode(bytes.NewReader(chevronImageBytes))
+	return i.(Image)
+}
 
 func TestSimpleWrapper_TextToRect(t *testing.T) {
 	tests := []struct {
@@ -18,8 +31,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 	}{
 		{
 			name:          "Simple one page one line test",
-			SimpleWrapper: NewSimpleWrapper("Testing this!", FontFace16ForTest(t)),
-			r:             SpaceFor(FontFace16ForTest(t), "Testing this!"),
+			SimpleWrapper: NewSimpleWrapper("Testing this!", FontFace16DPI180ForTest(t)),
+			r:             SpaceFor(FontFace16DPI180ForTest(t), "Testing this!"),
 			wantPages: [][]string{
 				{"Testing this!"},
 			},
@@ -27,8 +40,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name:          "Simple one page two line test",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t)),
-			r:             SpaceFor(FontFace16ForTest(t), "Testing this!", "Testing this!"),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t)),
+			r:             SpaceFor(FontFace16DPI180ForTest(t), "Testing this!", "Testing this!"),
 			wantPages: [][]string{
 				{
 					"Testing this! ",
@@ -39,8 +52,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name:          "Simple two page two identical lines no extra space",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t)),
-			r:             SpaceFor(FontFace16ForTest(t), "Testing this!"),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t)),
+			r:             SpaceFor(FontFace16DPI180ForTest(t), "Testing this!"),
 			wantPages: [][]string{
 				{"Testing this! "},
 				{"Testing this!"},
@@ -49,8 +62,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name:          "Simple two page one line test but there was almost space for 2 lines",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t)),
-			r:             Shrink(SpaceFor(FontFace16ForTest(t), "Testing this!"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t)),
+			r:             Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this!"), image.Pt(0, 4)),
 			wantPages: [][]string{
 				{
 					"Testing this! ",
@@ -64,9 +77,9 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		{
 			name: "Simple two page one line test with a continue box on the first one but otherwise would be " +
 				"the first word of the 2nd line. Unicode",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
-				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16ForTest(t), "↵"))),
-			r: Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16DPI180ForTest(t), "↵"))),
+			r: Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
 			wantPages: [][]string{
 				{
 					"Testing this! ↵",
@@ -79,16 +92,16 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name: "Page break too big",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
-				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16ForTest(t), "↵↵↵↵↵↵↵↵↵↵↵"))),
-			r:       Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16DPI180ForTest(t), "↵↵↵↵↵↵↵↵↵↵↵"))),
+			r:       Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
 			wantErr: true,
 		},
 		{
 			name: "Page Break two page one line test, page break pushes 2nd line into next box",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
-				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24ForTest(t), "↵"))),
-			r: Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! ↵↵", "Testing this! ↵↵"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24DPI180ForTest(t), "↵"))),
+			r: Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this! ↵↵", "Testing this! ↵↵"), image.Pt(0, 4)),
 			wantPages: [][]string{
 				{
 					"Testing this! ↵",
@@ -100,10 +113,30 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:          "Page Break two page one line test, page break pushes 2nd line into next box - image",
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI75ForTest(t), NewPageBreakBox(NewImageBox(chevronImage()))),
+			r:             SpaceFor(FontFace16DPI75ForTest(t), "Testing this! ↵↵ ↵↵ ↵↵", "Testing this! ↵↵ ↵↵ ↵↵"),
+			wantPages: [][]string{
+				{
+					"Testing this! ",
+				},
+				{
+					"Testing this!",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:          "Page break images can cause failures too if too tall",
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI75ForTest(t), NewPageBreakBox(NewImageBox(chevronImage()))),
+			r:             SpaceFor(FontFace16DPI75ForTest(t), "Testing this! ↵↵ ↵↵ ↵↵"),
+			wantErr:       true,
+		},
+		{
 			name: "Page break doesn't fit in rect",
-			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
-				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24ForTest(t), "↵"))),
-			r:       Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! ↵↵↵"), image.Pt(0, 4)),
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI180ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24DPI180ForTest(t), "↵"))),
+			r:       Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this! ↵↵↵"), image.Pt(0, 4)),
 			wantErr: true,
 		},
 	}
