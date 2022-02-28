@@ -81,15 +81,7 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			name: "Page break too big",
 			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
 				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace16ForTest(t), "↵↵↵↵↵↵↵↵↵↵↵"))),
-			r: Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
-			wantPages: [][]string{
-				{
-					"Testing this! ↵",
-				},
-				{
-					"Testing this!",
-				},
-			},
+			r:       Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! Testing"), image.Pt(0, 4)),
 			wantErr: true,
 		},
 		{
@@ -107,17 +99,22 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Page break doesn't fit in rect",
+			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24ForTest(t), "↵"))),
+			r:       Shrink(SpaceFor(FontFace16ForTest(t), "Testing this! ↵↵↵"), image.Pt(0, 4)),
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var actualPages [][]string
 			for {
 				got, _, err := tt.SimpleWrapper.TextToRect(tt.r)
-				if err != nil {
-					if (err != nil) != tt.wantErr {
-						t.Errorf("TextToRect() error = %v, wantErr %v", err, tt.wantErr)
-						return
-					}
+				if (err != nil) != tt.wantErr {
+					t.Errorf("TextToRect() error = %v, wantErr %v", err, tt.wantErr)
+					return
 				}
 				if len(got) == 0 {
 					break
