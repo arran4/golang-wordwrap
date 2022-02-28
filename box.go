@@ -338,6 +338,7 @@ func (ib *ImageBox) AdvanceRect() fixed.Int26_6 {
 func (ib *ImageBox) MetricsRect() font.Metrics {
 	return font.Metrics{
 		Height: fixed.I(ib.I.Bounds().Dy()),
+		Ascent: fixed.I(ib.I.Bounds().Dy()),
 	}
 }
 
