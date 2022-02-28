@@ -94,7 +94,7 @@ func TestSimpleFolder(t *testing.T) {
 				case *SimpleLine:
 					for _, b := range l.boxes {
 						switch b := b.(type) {
-						case *SimpleBox:
+						case *SimpleTextBox:
 							gotWords = append(gotWords, b.Contents)
 						}
 					}
@@ -116,6 +116,10 @@ func TestSimpleFolder(t *testing.T) {
 type FixedWordWidthBoxer struct {
 	text []rune
 	n    int
+}
+
+func (fwb *FixedWordWidthBoxer) Unshift(b ...Box) {
+	panic("implement me")
 }
 
 func (fwb *FixedWordWidthBoxer) Pos() int {
@@ -148,19 +152,21 @@ func (fwb *FixedWordWidthBoxer) Next() (Box, int, error) {
 	switch rmode {
 	case RNIL:
 		return nil, fwb.n, nil
-	case RCRLF:
-		b = &LineBreakBox{
-			text: string(rs),
-		}
-	case RSimpleBox:
+	case RSimpleBox, RCRLF:
 		t := string(rs)
-		b = &SimpleBox{
+		b = &SimpleTextBox{
 			Contents: t,
 			Bounds:   fixed.R(0, 0, 1, 1),
 			Advance:  fixed.I(1),
 		}
 	default:
 		return nil, fwb.n, fmt.Errorf("unknown rmode %d", rmode)
+	}
+	switch rmode {
+	case RCRLF:
+		b = &LineBreakBox{
+			Box: b,
+		}
 	}
 	fwb.n += n
 	return b, fwb.n, nil
