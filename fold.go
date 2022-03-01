@@ -67,9 +67,9 @@ func (l *SimpleLine) Push(b Box, a fixed.Int26_6) {
 	if dc > l.size.Max.Y {
 		l.size.Max.Y = dc
 	}
-	height := m.Ascent
-	if l.yoffset < height {
-		l.yoffset = height
+	yoffset := m.Ascent
+	if l.yoffset < yoffset {
+		l.yoffset = yoffset
 	}
 	l.boxes = append(l.boxes, b)
 }

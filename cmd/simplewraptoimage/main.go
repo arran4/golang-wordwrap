@@ -12,8 +12,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 )
 
 var (
@@ -58,17 +56,10 @@ func main() {
 	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, opts...); err != nil {
 		log.Panicf("Text wrap and draw error: %s", err)
 	}
-	outfn := *outfilename
-	if *textsource != "-" && outfn == "out.png" {
-		d, fn := filepath.Split(*textsource)
-		if strings.HasSuffix(filepath.Clean(d), "testdata") && strings.HasSuffix(fn, ".txt") {
-			outfn = filepath.Join(strings.TrimSuffix(filepath.Clean(d), "testdata"), "images", strings.TrimSuffix(fn, ".txt")+".png")
-		}
-	}
-	if err := SaveFile(i, outfn); err != nil {
+	if err := SaveFile(i, *outfilename); err != nil {
 		log.Panicf("Error with saving file: %s", err)
 	}
-	log.Printf("Done as %s", outfn)
+	log.Printf("Done as %s", *outfilename)
 }
 
 func GetText(fn string) (string, error) {

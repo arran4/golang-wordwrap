@@ -323,7 +323,11 @@ type PageBreakBox struct {
 
 // ImageBox is a box that contains an image
 type ImageBox struct {
-	I image.Image
+	I          image.Image
+	M          font.Metrics
+	metricCalc imageBoxOptionMetricCalcFunc
+	fontDrawer *font.Drawer
+	boxBox     bool
 }
 
 // Interface enforcement
@@ -336,10 +340,7 @@ func (ib *ImageBox) AdvanceRect() fixed.Int26_6 {
 
 // MetricsRect all other font details of text
 func (ib *ImageBox) MetricsRect() font.Metrics {
-	return font.Metrics{
-		Height: fixed.I(ib.I.Bounds().Dy()),
-		Ascent: fixed.I(ib.I.Bounds().Dy()),
-	}
+	return ib.M
 }
 
 // Whitespace if this is a white space or not
@@ -349,12 +350,21 @@ func (ib *ImageBox) Whitespace() bool {
 
 // DrawBox renders object
 func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6) {
-	draw.Draw(i, i.Bounds(), ib.I, ib.I.Bounds().Min, draw.Over)
+	bounds := i.Bounds()
+	draw.Draw(i, bounds, ib.I, ib.I.Bounds().Min, draw.Over)
+	if ib.boxBox {
+		util.DrawBox(i, bounds)
+	}
+}
+
+// turnOnBox draws a box around the box
+func (ib *ImageBox) turnOnBox() {
+	ib.boxBox = true
 }
 
 // FontDrawer font used
 func (ib *ImageBox) FontDrawer() *font.Drawer {
-	return nil
+	return ib.fontDrawer
 }
 
 // Len the length of the buffer represented by the box
@@ -367,9 +377,23 @@ func (ib *ImageBox) TextValue() string {
 	return ""
 }
 
+// CalculateMetrics calculate dimension and positioning
+func (ib *ImageBox) CalculateMetrics() {
+	if ib.metricCalc == nil {
+		ib.M = ImageBoxMetricAboveTheLine(ib)
+	} else {
+		ib.M = ib.metricCalc(ib)
+	}
+}
+
 // NewImageBox constructs a new ImageBox
-func NewImageBox(i image.Image) *ImageBox {
-	return &ImageBox{
+func NewImageBox(i image.Image, options ...ImageBoxOption) *ImageBox {
+	ib := &ImageBox{
 		I: i,
 	}
+	for _, o := range options {
+		o.applyImageBoxOption(ib)
+	}
+	ib.CalculateMetrics()
+	return ib
 }

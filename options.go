@@ -1,6 +1,8 @@
 package wordwrap
 
 import (
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 	"log"
 )
 
@@ -119,8 +121,11 @@ var BoxLine = folderOptionFunc(func(f interface{}) {
 
 // NewPageBreakBox is a FolderOption that tells the Liner to add a chevron image to the end of every text block that continues
 // past the given rect.
-func NewPageBreakBox(b Box) WrapperOption {
+func NewPageBreakBox(b Box, opts ...BoxerOption) WrapperOption {
 	return folderOptionFunc(func(f interface{}) {
+		for _, o := range opts {
+			o.ApplyBoxConfig(b)
+		}
 		switch f := f.(type) {
 		case interface{ setPageBreakBox(b Box) }:
 			f.setPageBreakBox(b)
@@ -142,12 +147,86 @@ func YOverflow(i OverflowMode) WrapperOption {
 // BoxBox is a BoxerOption that tells the Box to draw a box around itself mostly for debugging purposes but will be
 // the basis of how select and highlighting could work, such as the cursor
 var BoxBox = boxerOptionFunc(func(f interface{}) {
-	if f, ok := f.(*SimpleBoxer); ok {
-		f.postBoxOptions = append(f.postBoxOptions, func(box Box) {
-			switch box := box.(type) {
-			case interface{ turnOnBox() }:
-				box.turnOnBox()
-			}
-		})
+	bf := func(box Box) {
+		switch box := box.(type) {
+		case interface{ turnOnBox() }:
+			box.turnOnBox()
+		}
+	}
+	switch f := f.(type) {
+	case *SimpleBoxer:
+		f.postBoxOptions = append(f.postBoxOptions, bf)
+	case Box:
+		bf(f)
 	}
 })
+
+// ImageBoxOption modifiers for the ImageBox
+type ImageBoxOption interface {
+	applyImageBoxOption(box *ImageBox)
+}
+
+//
+type imageBoxOptionMetricCalcFunc func(ib2 *ImageBox) font.Metrics
+
+func (i imageBoxOptionMetricCalcFunc) applyImageBoxOption(box *ImageBox) {
+	box.metricCalc = i
+}
+
+var _ ImageBoxOption = (imageBoxOptionMetricCalcFunc)(nil)
+
+// ImageBoxMetricAboveTheLine Puts the image above the baseline as you would expect if you were using a word processor
+var ImageBoxMetricAboveTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox) font.Metrics {
+	return font.Metrics{
+		Height: fixed.I(ib.I.Bounds().Dy()),
+		Ascent: fixed.I(ib.I.Bounds().Dy()),
+	}
+}
+
+// ImageBoxMetricBelowTheLine Puts the image above the baseline. Rarely done
+var ImageBoxMetricBelowTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox) font.Metrics {
+	return font.Metrics{
+		Height:  fixed.I(ib.I.Bounds().Dy()),
+		Descent: fixed.I(ib.I.Bounds().Dy()),
+	}
+}
+
+// ImageBoxMetricCenter Puts the image running from the top down
+var ImageBoxMetricCenter func(fd *font.Drawer) imageBoxOptionMetricCalcFunc = func(fd *font.Drawer) imageBoxOptionMetricCalcFunc {
+	return func(ib *ImageBox) font.Metrics {
+		if fd == nil {
+			fd = ib.fontDrawer
+		}
+		if fd == nil {
+			return ImageBoxMetricBelowTheLine(ib)
+		}
+		m := fd.Face.Metrics()
+		return font.Metrics{
+			Height:  fixed.I(ib.I.Bounds().Dy()),
+			Descent: fixed.I(ib.I.Bounds().Dy())/2 - m.Descent/2,
+			Ascent:  fixed.I(ib.I.Bounds().Dy())/2 + m.Descent/2,
+		}
+	}
+}
+
+// FontDrawer a wrapper around *font.Draw used to set the font
+type FontDrawer struct {
+	d *font.Drawer
+}
+
+// NewFontDrawer a wrapper around *font.Draw used to set the font mostly for image
+func NewFontDrawer(d *font.Drawer) *FontDrawer {
+	return &FontDrawer{
+		d: d,
+	}
+}
+
+// applyImageBoxOption
+func (f *FontDrawer) applyImageBoxOption(box *ImageBox) {
+	box.fontDrawer = f.d
+}
+
+var (
+	// Enforce interface adherence
+	_ ImageBoxOption = (*FontDrawer)(nil)
+)

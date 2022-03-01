@@ -118,7 +118,7 @@ You could also do it in 2 steps, this provides the rectangles incase you wanted 
 
 There will be more options but some are:
 
-### wordwrap.BoxLine
+### WordWrap/Line Option: `wordwrap.BoxLine`
 
 Using the option `BoxLine` will cause the image to draw a box around the lines of boxes. Like such
 ![](images/sample2.png)
@@ -128,7 +128,7 @@ Usage:
 wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxLine)
 ```
 
-### wordwrap.BoxBox
+### WordWrap/Box Option: `wordwrap.BoxBox`
 
 Using the option `BoxLine` will cause the image to draw a box around the boxes. Like such
 ![](images/sample4.png)
@@ -136,6 +136,52 @@ Using the option `BoxLine` will cause the image to draw a box around the boxes. 
 Usage:
 ```go
 wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxBox)
+```
+
+### `wordwrap.NewPageBreakBox`
+
+Adds a box that will be put at the end of every "page" of the
+word wrap. For instance a "more text" option used in:
+https://github.com/arran4/golang-rpg-textbox
+
+![](images/end-of-text-chevron+left-avatar+left-avatar.png)
+
+Usage:
+```go
+wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(NewImageBox(image)))
+```
+
+### `wordwrap.ImageBoxMetricAboveTheLine` (default)
+
+Puts the image above the line as you would expect on a modern word processor
+
+![](images/sample6.png)
+
+Usage:
+```go
+wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricAboveTheLine), wordwrap.BoxBox))
+```
+
+### `wordwrap.ImageBoxMetricBelowTheLine` (default)
+
+Puts the image below the line as you would expect on a modern word processor
+
+![](images/sample8.png)
+
+Usage:
+```go
+wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricBelowTheLine), wordwrap.BoxBox))
+```
+
+### `wordwrap.ImageBoxMetricCenterLine`
+
+Vertically centers the box line
+
+![](images/sample9.png)
+
+Usage:
+```go
+wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer)), wordwrap.BoxBox))
 ```
 
 ## CLI app
