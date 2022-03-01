@@ -10,6 +10,7 @@ import (
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
 	"image"
+	"image/draw"
 	"image/png"
 	"io"
 	"io/ioutil"
@@ -51,6 +52,7 @@ func main() {
 func SampleType1(width, height int, fontsize, dpi float64, fontname, textsource, outfilename string, opts ...wordwrap.WrapperOption) {
 	log.Printf("Working on %s", outfilename)
 	i := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.Draw(i, i.Bounds(), image.NewUniform(image.White), i.Bounds().Min, draw.Over)
 	grf, err := GetFontFace(fontname, fontsize, dpi)
 	if err != nil {
 		log.Panicf("Error opening font %s: %s", fontname, err)
