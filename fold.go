@@ -22,7 +22,9 @@ type Line interface {
 	// YValue where the baseline is
 	YValue() int
 	// PopSpaceFor will push box at the end, if there isn't enough width, it will make width space.
-	PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) error
+	PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) (int, error)
+	// setStats Sets the page stats
+	setStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
 }
 
 // Folder is the literal line sizer & producer function
@@ -38,28 +40,42 @@ type SimpleLine struct {
 	yoffset    fixed.Int26_6
 	boxLine    bool
 	fontDrawer *font.Drawer
+	stats      *LinePositionStats
+}
+
+// setStats Sets the page stats
+func (l *SimpleLine) setStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int) {
+	l.stats = &LinePositionStats{
+		LineNumber:    lineNumber,
+		PageNumber:    pageNumber,
+		PageBoxOffset: currentPageBoxOffset,
+		WordOffset:    boxOffset,
+	}
 }
 
 // PopSpaceFor will push box at the end, if there isn't enough width, it will make width space.
-func (l *SimpleLine) PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) error {
+func (l *SimpleLine) PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) (int, error) {
 	ar := box.AdvanceRect()
 	lastWs := false
+	c := 0
 	for r.Dx() < (l.size.Max.X - l.size.Min.X + ar).Ceil() {
 		b := l.Pop()
 		if b == nil {
-			return fmt.Errorf("no more boxes")
+			return 0, fmt.Errorf("no more boxes")
 		}
+		c++
 		sf.boxer.Unshift(b)
 		lastWs = b.Whitespace()
 	}
 	switch box := box.(type) {
 	case *PageBreakBox:
 		if lastWs {
+			c--
 			box.ContainerBox = sf.boxer.Shift()
 		}
 	}
 	l.Push(box, ar)
-	return nil
+	return c, nil
 }
 
 // Push a box onto the end, and also copy values in appropriately
@@ -100,6 +116,7 @@ func (l *SimpleLine) Pop() Box {
 	}
 }
 
+// Interface enforcement
 var _ Line = (*SimpleLine)(nil)
 
 // Boxes are the lines contents
@@ -133,17 +150,25 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 		Min: bounds.Min,
 		Max: bounds.Min,
 	}
+	config := NewDrawConfig(options...)
 	r.Max.Y = bounds.Max.Y
 	var fi = fixed.I(r.Min.X)
-	for _, b := range l.boxes {
+	for bi, b := range l.boxes {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
-		b.DrawBox(subImage, l.yoffset, options...)
+		var bb Box = b
+		if config.BoxDrawMap != nil {
+			bb = config.ApplyMap(bb, l.stats.BoxPositionStats(bi))
+		}
+		if bb == nil {
+			continue
+		}
+		bb.DrawBox(subImage, l.yoffset, config)
 		r.Min.X = r.Max.X
 	}
 	if l.boxLine {
-		DrawBox(i, bounds, options...)
+		DrawBox(i, bounds, config)
 	}
 	return nil
 }
@@ -279,7 +304,7 @@ func (l *SimpleLine) Size() image.Rectangle {
 	}
 }
 
-// Size is the size consumed of the line
+// setPageBreakBox sets the page break box, this is called by an Option
 func (sf *SimpleFolder) setPageBreakBox(b Box) {
 	sf.pageBreakBox = b
 }

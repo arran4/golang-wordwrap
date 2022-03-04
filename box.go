@@ -19,7 +19,7 @@ type Box interface {
 	// Whitespace if this is a white space or not
 	Whitespace() bool
 	// DrawBox renders object
-	DrawBox(i Image, y fixed.Int26_6, options ...DrawOption)
+	DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig)
 	// FontDrawer font used
 	FontDrawer() *font.Drawer
 	// Len the length of the buffer represented by the box
@@ -298,11 +298,7 @@ func (sb *SimpleTextBox) Whitespace() bool {
 }
 
 // DrawBox renders object
-func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
-	dc := &DrawConfig{}
-	for _, option := range options {
-		option.Apply(dc)
-	}
+func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	if dc.SourceImageMapper != nil {
 		originalSrc := sb.drawer.Src
 		sb.drawer.Src = dc.SourceImageMapper(originalSrc)
@@ -318,7 +314,7 @@ func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption
 	}
 	sb.drawer.DrawString(sb.Contents)
 	if sb.boxBox {
-		DrawBox(i, b, options...)
+		DrawBox(i, b, dc)
 	}
 }
 
@@ -329,7 +325,7 @@ type LineBreakBox struct {
 }
 
 // DrawBox renders object
-func (sb *LineBreakBox) DrawBox(i Image, y fixed.Int26_6, option ...DrawOption) {}
+func (sb *LineBreakBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {}
 
 // AdvanceRect width of text
 func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
@@ -376,9 +372,9 @@ func (p *PageBreakBox) Whitespace() bool {
 }
 
 // DrawBox renders object
-func (p *PageBreakBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
+func (p *PageBreakBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	if p.VisualBox != nil {
-		p.VisualBox.DrawBox(i, y, options...)
+		p.VisualBox.DrawBox(i, y, dc)
 	}
 }
 
@@ -455,12 +451,8 @@ func (ib *ImageBox) Whitespace() bool {
 }
 
 // DrawBox renders object
-func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
+func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	bounds := i.Bounds()
-	dc := &DrawConfig{}
-	for _, option := range options {
-		option.Apply(dc)
-	}
 	srci := ib.I
 	if dc.SourceImageMapper != nil {
 		originalSrc := srci
@@ -471,7 +463,7 @@ func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
 	}
 	draw.Draw(i, bounds /* TODO .Add(image.Pt(0, y.Ceil()))*/, srci, srci.Bounds().Min, draw.Over)
 	if ib.boxBox {
-		DrawBox(i, bounds, options...)
+		DrawBox(i, bounds, dc)
 	}
 }
 

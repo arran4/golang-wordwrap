@@ -12,6 +12,8 @@ type SimpleWrapper struct {
 	boxerOptions  []BoxerOption
 	boxer         Boxer
 	fontDrawer    *font.Drawer
+	currentPage   int
+	boxCount      int
 }
 
 // addFoldConfig allows passing down of FolderOption
@@ -83,6 +85,7 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 	ls := make([]Line, 0)
 	p := r.Min
 	sf := NewSimpleFolder(sw.boxer, r, sw.fontDrawer, sw.folderOptions...)
+	pageBoxCount := 0
 	for (p.Y - r.Min.Y) <= r.Dy() {
 		l, err := sf.Next(r.Dy() - (p.Y - r.Min.Y))
 		if err != nil {
@@ -109,14 +112,20 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 		if stop {
 			break
 		}
+		l.setStats(len(ls), sw.currentPage, sw.boxCount, pageBoxCount)
+		boxCount := len(l.Boxes())
+		sw.boxCount += boxCount
+		pageBoxCount += boxCount
 		ls = append(ls, l)
 		p.Y += s.Dy()
 	}
 	if sf.pageBreakBox != nil && sf.boxer.HasNext() {
 		if len(ls) > 0 {
 			line := ls[len(ls)-1]
-			if err := line.PopSpaceFor(sf, r, NewPageBreak(sf.pageBreakBox)); err != nil {
+			if n, err := line.PopSpaceFor(sf, r, NewPageBreak(sf.pageBreakBox)); err != nil {
 				return nil, image.Point{}, err
+			} else {
+				sw.boxCount -= n
 			}
 			if len(line.Boxes()) == 1 {
 				return nil, image.Point{}, fmt.Errorf("page break too long or rect too small")
@@ -125,6 +134,7 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, err
 			return nil, image.Point{}, fmt.Errorf("page break too tall or rect too small")
 		}
 	}
+	sw.currentPage++
 	sw.fontDrawer = sf.lastFontDrawer
 	return ls, p, nil
 }

@@ -28,9 +28,70 @@ func (s SourceImageMapper) Apply(config *DrawConfig) {
 // Interface enforcement
 var _ DrawOption = (*SourceImageMapper)(nil)
 
+// LinePositionStats numbers to use for pin pointing location
+type LinePositionStats struct {
+	LineNumber    int
+	PageBoxOffset int
+	WordOffset    int
+	PageNumber    int
+}
+
+// BoxPositionStats generates object of same name
+func (lps *LinePositionStats) BoxPositionStats(numberInLine int) *BoxPositionStats {
+	return &BoxPositionStats{
+		LinePositionStats: lps,
+		NumberInLine:      numberInLine,
+		PageBoxOffset:     numberInLine + lps.PageBoxOffset,
+		WordOffset:        numberInLine + lps.WordOffset,
+	}
+}
+
+// BoxPositionStats Box position stats
+type BoxPositionStats struct {
+	*LinePositionStats
+	NumberInLine  int
+	PageBoxOffset int
+	WordOffset    int
+}
+
+// BoxDrawMap allows the modification of boxes
+type BoxDrawMap func(box Box, drawOps *DrawConfig, bps *BoxPositionStats) Box
+
+// Apply installs the image source mapper
+func (s BoxDrawMap) Apply(config *DrawConfig) {
+	if config.BoxDrawMap != nil {
+		orig := config.BoxDrawMap
+		config.BoxDrawMap = func(box Box, drawOps *DrawConfig, bps *BoxPositionStats) Box {
+			return s(orig(box, drawOps, bps), drawOps, bps)
+		}
+	}
+	config.BoxDrawMap = s
+}
+
+// Interface enforcement
+var _ DrawOption = (*BoxDrawMap)(nil)
+
 // DrawConfig options for the drawer
 type DrawConfig struct {
 	SourceImageMapper SourceImageMapper
+	BoxDrawMap        BoxDrawMap
+}
+
+// ApplyMap applies the box mapping function used for conditionally rendering or modifying the object being rendered
+func (c *DrawConfig) ApplyMap(b Box, bps *BoxPositionStats) Box {
+	if c.BoxDrawMap != nil {
+		return c.BoxDrawMap(b, c, bps)
+	}
+	return b
+}
+
+// NewDrawConfig construct a draw config from DrawOptions
+func NewDrawConfig(options ...DrawOption) *DrawConfig {
+	dc := &DrawConfig{}
+	for _, option := range options {
+		option.Apply(dc)
+	}
+	return dc
 }
 
 // DrawOption options applied and passed down the drawing functions
@@ -39,12 +100,8 @@ type DrawOption interface {
 }
 
 // DrawBox literally draws a simple box
-func DrawBox(i draw.Image, s image.Rectangle, options ...DrawOption) {
+func DrawBox(i draw.Image, s image.Rectangle, dc *DrawConfig) {
 	var srci image.Image = image.Black
-	dc := &DrawConfig{}
-	for _, option := range options {
-		option.Apply(dc)
-	}
 	if dc.SourceImageMapper != nil {
 		originalSrc := srci
 		srci = dc.SourceImageMapper(originalSrc)
