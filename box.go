@@ -3,7 +3,6 @@ package wordwrap
 import (
 	"errors"
 	"fmt"
-	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
@@ -20,7 +19,7 @@ type Box interface {
 	// Whitespace if this is a white space or not
 	Whitespace() bool
 	// DrawBox renders object
-	DrawBox(i Image, y fixed.Int26_6)
+	DrawBox(i Image, y fixed.Int26_6, option ...DrawOption)
 	// FontDrawer font used
 	FontDrawer() *font.Drawer
 	// Len the length of the buffer represented by the box
@@ -290,7 +289,18 @@ func (sb *SimpleTextBox) Whitespace() bool {
 }
 
 // DrawBox renders object
-func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6) {
+func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
+	dc := &DrawConfig{}
+	for _, option := range options {
+		option.Apply(dc)
+	}
+	if dc.SourceImageMapper != nil {
+		originalSrc := sb.drawer.Src
+		sb.drawer.Src = dc.SourceImageMapper(originalSrc)
+		defer func() {
+			sb.drawer.Src = originalSrc
+		}()
+	}
 	sb.drawer.Dst = i
 	b := i.Bounds()
 	sb.drawer.Dot = fixed.Point26_6{
@@ -299,7 +309,7 @@ func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6) {
 	}
 	sb.drawer.DrawString(sb.Contents)
 	if sb.boxBox {
-		util.DrawBox(i, b)
+		DrawBox(i, b, options...)
 	}
 }
 
@@ -309,7 +319,7 @@ type LineBreakBox struct {
 }
 
 // DrawBox renders object
-func (sb *LineBreakBox) DrawBox(i Image, y fixed.Int26_6) {}
+func (sb *LineBreakBox) DrawBox(i Image, y fixed.Int26_6, option ...DrawOption) {}
 
 // AdvanceRect width of text
 func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
@@ -349,11 +359,23 @@ func (ib *ImageBox) Whitespace() bool {
 }
 
 // DrawBox renders object
-func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6) {
+func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
 	bounds := i.Bounds()
-	draw.Draw(i, bounds, ib.I, ib.I.Bounds().Min, draw.Over)
+	dc := &DrawConfig{}
+	for _, option := range options {
+		option.Apply(dc)
+	}
+	srci := ib.I
+	if dc.SourceImageMapper != nil {
+		originalSrc := srci
+		srci = dc.SourceImageMapper(originalSrc)
+		defer func() {
+			srci = originalSrc
+		}()
+	}
+	draw.Draw(i, bounds /* TODO .Add(image.Pt(0, y.Ceil()))*/, srci, srci.Bounds().Min, draw.Over)
 	if ib.boxBox {
-		util.DrawBox(i, bounds)
+		DrawBox(i, bounds, options...)
 	}
 }
 

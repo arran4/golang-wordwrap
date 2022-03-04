@@ -3,7 +3,6 @@ package wordwrap
 import (
 	"bytes"
 	"fmt"
-	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"image"
@@ -15,7 +14,7 @@ type Line interface {
 	// Size the line consumes
 	Size() image.Rectangle
 	// DrawLine draws the line
-	DrawLine(i Image) error
+	DrawLine(i Image, options ...DrawOption) error
 	// Boxes are the lines contents
 	Boxes() []Box
 	// TextValue extracts the text value
@@ -120,7 +119,7 @@ func (l *SimpleLine) turnOnBox() {
 }
 
 // DrawLine renders image to image, you can control the location by using the SubImage function.
-func (l *SimpleLine) DrawLine(i Image) error {
+func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 	bounds := i.Bounds()
 	r := image.Rectangle{
 		Min: bounds.Min,
@@ -132,11 +131,11 @@ func (l *SimpleLine) DrawLine(i Image) error {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
-		b.DrawBox(subImage, l.yoffset)
+		b.DrawBox(subImage, l.yoffset, options...)
 		r.Min.X = r.Max.X
 	}
 	if l.boxLine {
-		util.DrawBox(i, bounds)
+		DrawBox(i, bounds, options...)
 	}
 	return nil
 }

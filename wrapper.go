@@ -47,11 +47,11 @@ func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *Simple
 
 // RenderLines draws the boxes for the given lines. on the image, starting at the specified point ignoring the original
 // boundaries but maintaining the wrapping
-func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point) error {
+func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point, options ...DrawOption) error {
 	for _, l := range ls {
 		s := l.Size()
 		rgba := i.SubImage(s.Add(at)).(Image)
-		if err := l.DrawLine(rgba); err != nil {
+		if err := l.DrawLine(rgba, options...); err != nil {
 			return fmt.Errorf("drawing text: %s", err)
 		}
 		at.Y += s.Dy()
