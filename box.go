@@ -19,7 +19,7 @@ type Box interface {
 	// Whitespace if this is a white space or not
 	Whitespace() bool
 	// DrawBox renders object
-	DrawBox(i Image, y fixed.Int26_6, option ...DrawOption)
+	DrawBox(i Image, y fixed.Int26_6, options ...DrawOption)
 	// FontDrawer font used
 	FontDrawer() *font.Drawer
 	// Len the length of the buffer represented by the box
@@ -46,6 +46,8 @@ type Boxer interface {
 	Pos() int
 	// Unshift basically is Push but to the start
 	Unshift(b ...Box)
+	// Shift removes the first element but unlike Next doesn't attempt to generate a new one if there is nothing
+	Shift() Box
 }
 
 // IsCR Is a carriage return
@@ -126,12 +128,19 @@ func (sb *SimpleBoxer) Unshift(box ...Box) {
 	sb.cacheQueue = append(append(make([]Box, 0, len(box)+len(sb.cacheQueue)), box...), sb.cacheQueue...)
 }
 
-// Next gets the next word in a Box
-func (sb *SimpleBoxer) Next() (Box, int, error) {
+func (sb *SimpleBoxer) Shift() Box {
 	if len(sb.cacheQueue) > 0 {
 		cb := sb.cacheQueue[0]
 		sb.cacheQueue = sb.cacheQueue[1:]
-		return cb, 0, nil
+		return cb
+	}
+	return nil
+}
+
+// Next gets the next word in a Box
+func (sb *SimpleBoxer) Next() (Box, int, error) {
+	if len(sb.cacheQueue) > 0 {
+		return sb.Shift(), 0, nil
 	}
 	if len(sb.text) == 0 {
 		return nil, 0, nil
@@ -315,6 +324,7 @@ func (sb *SimpleTextBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption
 
 // LineBreakBox represents a natural or an effective line break
 type LineBreakBox struct {
+	// Box is the box that linebreak contains if any
 	Box
 }
 
@@ -328,8 +338,94 @@ func (sb *LineBreakBox) AdvanceRect() fixed.Int26_6 {
 
 // PageBreakBox represents a natural or an effective page break
 type PageBreakBox struct {
-	Box
+	// VisualBox is the box to render and use
+	VisualBox Box
+	// ContainerBox is the box that linebreak contains if any
+	ContainerBox Box
 }
+
+// NewPageBreak basic constructor for a page break.
+func NewPageBreak(pbb Box) *PageBreakBox {
+	return &PageBreakBox{
+		VisualBox: pbb,
+	}
+}
+
+// AdvanceRect width of text
+func (p *PageBreakBox) AdvanceRect() fixed.Int26_6 {
+	if p.VisualBox != nil {
+		return p.VisualBox.AdvanceRect()
+	}
+	return 0
+}
+
+// MetricsRect all other font details of text
+func (p *PageBreakBox) MetricsRect() font.Metrics {
+	if p.VisualBox != nil {
+		return p.VisualBox.MetricsRect()
+	}
+	return font.Metrics{}
+}
+
+// Whitespace if contains a white space or not
+func (p *PageBreakBox) Whitespace() bool {
+	if p.ContainerBox != nil {
+		return p.ContainerBox.Whitespace()
+	}
+	return false
+}
+
+// DrawBox renders object
+func (p *PageBreakBox) DrawBox(i Image, y fixed.Int26_6, options ...DrawOption) {
+	if p.VisualBox != nil {
+		p.VisualBox.DrawBox(i, y, options...)
+	}
+}
+
+// turnOnBox draws a box around the box
+func (p *PageBreakBox) turnOnBox() {
+	switch p := p.VisualBox.(type) {
+	case interface{ turnOnBox() }:
+		p.turnOnBox()
+	}
+}
+
+// FontDrawer font used
+func (p *PageBreakBox) FontDrawer() *font.Drawer {
+	if p.VisualBox != nil {
+		return p.VisualBox.FontDrawer()
+	}
+	if p.ContainerBox != nil {
+		return p.ContainerBox.FontDrawer()
+	}
+	return nil
+}
+
+// Len the length of the buffer represented by the box
+func (p *PageBreakBox) Len() int {
+	if p.ContainerBox != nil {
+		return p.ContainerBox.Len()
+	}
+	if p.ContainerBox != nil {
+		return p.ContainerBox.Len()
+	}
+	return 0
+}
+
+// TextValue returns the text suppressed by the line break (probably a white space including a \r\n)
+func (p *PageBreakBox) TextValue() string {
+	b := ""
+	if p.ContainerBox != nil {
+		b += p.ContainerBox.TextValue()
+	}
+	if p.VisualBox != nil {
+		b += p.VisualBox.TextValue()
+	}
+	return b
+}
+
+// Interface enforcement
+var _ Box = (*PageBreakBox)(nil)
 
 // ImageBox is a box that contains an image
 type ImageBox struct {

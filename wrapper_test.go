@@ -113,6 +113,21 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Page Break two page one line test, page break pushes 2nd line into next box white space is not folded",
+			SimpleWrapper: NewSimpleWrapper("Testing this!     Testing this!", FontFace16DPI180ForTest(t),
+				NewPageBreakBox(NewSimpleTextBoxForTest(t, FontFace24DPI180ForTest(t), "↵"))),
+			r: Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this! ↵↵", "Testing this! ↵↵"), image.Pt(0, 4)),
+			wantPages: [][]string{
+				{
+					"Testing this!     ↵",
+				},
+				{
+					"Testing this!",
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name:          "Page Break two page one line test, page break pushes 2nd line into next box - image",
 			SimpleWrapper: NewSimpleWrapper("Testing this! Testing this!", FontFace16DPI75ForTest(t), NewPageBreakBox(NewImageBox(chevronImage()))),
 			r:             SpaceFor(FontFace16DPI75ForTest(t), "Testing this! ↵↵ ↵↵ ↵↵", "Testing this! ↵↵ ↵↵ ↵↵"),

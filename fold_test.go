@@ -118,6 +118,10 @@ type FixedWordWidthBoxer struct {
 	n    int
 }
 
+func (fwb *FixedWordWidthBoxer) Shift() Box {
+	panic("implement me")
+}
+
 func (fwb *FixedWordWidthBoxer) Unshift(b ...Box) {
 	panic("implement me")
 }

@@ -43,12 +43,20 @@ type SimpleLine struct {
 // PopSpaceFor will push box at the end, if there isn't enough width, it will make width space.
 func (l *SimpleLine) PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) error {
 	ar := box.AdvanceRect()
+	lastWs := false
 	for r.Dx() < (l.size.Max.X - l.size.Min.X + ar).Ceil() {
 		b := l.Pop()
 		if b == nil {
 			return fmt.Errorf("no more boxes")
 		}
 		sf.boxer.Unshift(b)
+		lastWs = b.Whitespace()
+	}
+	switch box := box.(type) {
+	case *PageBreakBox:
+		if lastWs {
+			box.ContainerBox = sf.boxer.Shift()
+		}
 	}
 	l.Push(box, ar)
 	return nil
