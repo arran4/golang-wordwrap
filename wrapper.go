@@ -34,6 +34,7 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 }
 
 // NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
+// assumes black text
 func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
 	fontDrawer := &font.Drawer{
 		Src:  image.NewUniform(image.Black),
