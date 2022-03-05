@@ -184,6 +184,23 @@ Usage:
 wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer)), wordwrap.BoxBox))
 ```
 
+### `wordwrap.SourceImageMapper`
+
+This allows you to substitute the source image for a box. Such as the source image for text is a color.Uniform image, so
+it allows you to change the color, or apply some other effect such as a pattern or fade it out. 
+
+For an image you can use proxy / interceptor pattern draw.Image structure to modify the source image as you want.
+
+### `wordwrap.BoxDrawMap`
+
+Is a function to the form:
+```go
+func(box Box, drawOps *DrawConfig, bps *BoxPositionStats) Box
+```
+
+Which is executed just before each box is drawn if provided. This allows you to substitute a box, such as with an empty
+box if you don't wish for it to be drawn, or you could use it to mask input.
+
 ## CLI app
 
 For demo purposes there is a CLI app in `cmd/simplewraptoimage`
