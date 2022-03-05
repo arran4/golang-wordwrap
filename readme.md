@@ -230,3 +230,7 @@ Only font that is supported is "goregular" as this is only a demo. Happy to acce
 make it more general. (Or to include more cli.)
 
 The contents of the `images` directory are outputs from this using the test data from the folder `testdata`
+
+# License
+
+TBH I really haven't thought about it. Contact me
