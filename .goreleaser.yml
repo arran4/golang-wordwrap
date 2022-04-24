@@ -1,6 +1,7 @@
-project_name: simplewraptoimage
+project_name: golang-wordwrap
 builds:
   -
+    id: "simplewraptoimage"
     binary: "simplewraptoimage"
     dir: cmd/simplewraptoimage
     env:
