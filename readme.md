@@ -121,7 +121,7 @@ There will be more options but some are:
 ### WordWrap/Line Option: `wordwrap.BoxLine`
 
 Using the option `BoxLine` will cause the image to draw a box around the lines of boxes. Like such
-![](images/sample2.png)
+![](images/sample02.png)
 
 Usage:
 ```go
@@ -131,7 +131,7 @@ wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BoxLine)
 ### WordWrap/Box Option: `wordwrap.BoxBox`
 
 Using the option `BoxLine` will cause the image to draw a box around the boxes. Like such
-![](images/sample4.png)
+![](images/sample04.png)
 
 Usage:
 ```go
@@ -155,7 +155,7 @@ wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(NewImageBo
 
 Puts the image above the line as you would expect on a modern word processor
 
-![](images/sample6.png)
+![](images/sample06.png)
 
 Usage:
 ```go
@@ -166,7 +166,7 @@ wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(wordwrap.N
 
 Puts the image below the line as you would expect on a modern word processor
 
-![](images/sample8.png)
+![](images/sample08.png)
 
 Usage:
 ```go
@@ -177,7 +177,7 @@ wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.NewPageBreakBox(wordwrap.N
 
 Vertically centers the box line
 
-![](images/sample9.png)
+![](images/sample09.png)
 
 Usage:
 ```go
