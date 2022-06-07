@@ -192,7 +192,7 @@ var ImageBoxMetricBelowTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox)
 }
 
 // ImageBoxMetricCenter Puts the image running from the top down
-var ImageBoxMetricCenter func(fd *font.Drawer) imageBoxOptionMetricCalcFunc = func(fd *font.Drawer) imageBoxOptionMetricCalcFunc {
+var ImageBoxMetricCenter = func(fd *font.Drawer) imageBoxOptionMetricCalcFunc {
 	return func(ib *ImageBox) font.Metrics {
 		if fd == nil {
 			fd = ib.fontDrawer
