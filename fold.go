@@ -35,12 +35,26 @@ type Folder interface {
 
 // SimpleLine is a simple implementation to prevent name space names later. Represents a line
 type SimpleLine struct {
-	boxes      []Box
-	size       fixed.Rectangle26_6
-	yoffset    fixed.Int26_6
-	boxLine    bool
-	fontDrawer *font.Drawer
-	stats      *LinePositionStats
+	boxes                  []Box
+	size                   fixed.Rectangle26_6
+	yoffset                fixed.Int26_6
+	boxLine                bool
+	fontDrawer             *font.Drawer
+	stats                  *LinePositionStats
+	horizontalLinePosition HorizontalLinePosition
+}
+
+// Ensures that the interface is filled
+var _ interface{ horizontalPosition(HorizontalLinePosition) } = (*SimpleLine)(nil)
+
+// horizontalPosition setter
+func (l *SimpleLine) horizontalPosition(hp HorizontalLinePosition) {
+	l.horizontalLinePosition = hp
+}
+
+// horizontalPosition getter
+func (l *SimpleLine) getHorizontalLinePosition() HorizontalLinePosition {
+	return l.horizontalLinePosition
 }
 
 // setStats Sets the page stats
@@ -211,11 +225,7 @@ func NewSimpleFolder(boxer Boxer, container image.Rectangle, lastFontDrawer *fon
 
 // Next generates the next life if space
 func (sf *SimpleFolder) Next(yspace int) (Line, error) {
-	r := &SimpleLine{
-		boxes:      []Box{},
-		size:       fixed.R(0, 0, 0, 0),
-		fontDrawer: sf.lastFontDrawer,
-	}
+	r := sf.NewLine()
 	for {
 		b, i, err := sf.boxer.Next()
 		if err != nil {
@@ -257,6 +267,15 @@ func (sf *SimpleFolder) Next(yspace int) (Line, error) {
 		option(r)
 	}
 	return r, nil
+}
+
+// NewLine constructs a new simple line. (Later to be a factory proxy)
+func (sf *SimpleFolder) NewLine() *SimpleLine {
+	return &SimpleLine{
+		boxes:      []Box{},
+		size:       fixed.R(0, 0, 0, 0),
+		fontDrawer: sf.lastFontDrawer,
+	}
 }
 
 // fitAddBox fits if the box and if it does fit adds it. returns new array offset, a bool if it

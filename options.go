@@ -230,3 +230,35 @@ var (
 	// Enforce interface adherence
 	_ ImageBoxOption = (*FontDrawer)(nil)
 )
+
+type HorizontalLinePosition int
+
+const (
+	LeftLines HorizontalLinePosition = iota
+	HorizontalCenterLines
+	RightLines
+)
+
+var _ FolderOption = LeftLines
+var _ WrapperOption = LeftLines
+
+func (hp HorizontalLinePosition) ApplyWrapperConfig(wr interface{}) {
+	if wr, ok := wr.(addFoldConfig); ok {
+		wr.addFoldConfig(hp)
+	} else {
+		log.Printf("can't apply")
+	}
+}
+
+func (hp HorizontalLinePosition) ApplyFoldConfig(f interface{}) {
+	if f, ok := f.(*SimpleFolder); ok {
+		f.lineOptions = append(f.lineOptions, func(line Line) {
+			switch line := line.(type) {
+			case interface{ horizontalPosition(HorizontalLinePosition) }:
+				line.horizontalPosition(hp)
+			default:
+				log.Printf("can't apply")
+			}
+		})
+	}
+}
