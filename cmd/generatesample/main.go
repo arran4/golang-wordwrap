@@ -47,8 +47,12 @@ func main() {
 	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample07.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricAboveTheLine), wordwrap.BoxBox))
 	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample08.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricBelowTheLine), wordwrap.BoxBox))
 	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample09.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer)), wordwrap.BoxBox))
-	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample10.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer))), wordwrap.HorizontalCenterLines)
-	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample11.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer))), wordwrap.RightLines)
+	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample10.png", wordwrap.HorizontalCenterLines)
+	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample11.png", wordwrap.RightLines)
+	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample7.txt", "images/sample12.png", wordwrap.HorizontalCenterBlock)
+	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample7.txt", "images/sample13.png", wordwrap.RightBlock)
+	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample6.txt", "images/sample14.png", wordwrap.VerticalCenterBlock)
+	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample6.txt", "images/sample15.png", wordwrap.BottomBlock)
 }
 
 func SampleType1(width, height int, fontsize, dpi float64, fontname, textsource, outfilename string, opts ...wordwrap.WrapperOption) {

@@ -6,6 +6,12 @@ import (
 	"log"
 )
 
+/*
+
+At a later stage I'm going to change how this works. Currently, it isn't great but open to suggestions.
+
+*/
+
 // FolderOption for folders
 type FolderOption interface {
 	// WrapperOption Allows you to pass the option to a Wrapper and assume it gets passed to the constructor of the
@@ -231,17 +237,27 @@ var (
 	_ ImageBoxOption = (*FontDrawer)(nil)
 )
 
+// HorizontalLinePosition is the type for per-line level alignment.
 type HorizontalLinePosition int
 
 const (
+	// LeftLines default, produces lines that are individually left justified.
 	LeftLines HorizontalLinePosition = iota
+	// HorizontalCenterLines produces lines that are individually center justified.
 	HorizontalCenterLines
+	// RightLines produces lines that are individually right justified.
 	RightLines
 )
 
-var _ FolderOption = LeftLines
-var _ WrapperOption = LeftLines
+var (
+	// Ensures interface compliance
+	_ FolderOption = LeftLines
+	// Ensures interface compliance
+	_ WrapperOption = LeftLines
+)
 
+// ApplyWrapperConfig Is required to pass the configuration through to the appropriate level -- Hopefully will be
+// refactored
 func (hp HorizontalLinePosition) ApplyWrapperConfig(wr interface{}) {
 	if wr, ok := wr.(addFoldConfig); ok {
 		wr.addFoldConfig(hp)
@@ -250,6 +266,7 @@ func (hp HorizontalLinePosition) ApplyWrapperConfig(wr interface{}) {
 	}
 }
 
+// ApplyFoldConfig applies the configuration to the wrapper where it will be stored in the line.
 func (hp HorizontalLinePosition) ApplyFoldConfig(f interface{}) {
 	if f, ok := f.(*SimpleFolder); ok {
 		f.lineOptions = append(f.lineOptions, func(line Line) {
@@ -260,5 +277,55 @@ func (hp HorizontalLinePosition) ApplyFoldConfig(f interface{}) {
 				log.Printf("can't apply")
 			}
 		})
+	}
+}
+
+// HorizontalBlockPosition information about how to position the entire block of text rather than just the line horizontally
+type HorizontalBlockPosition int
+
+const (
+	// LeftBLock positions the entire block of text left rather than just the line horizontally (default)
+	LeftBLock HorizontalBlockPosition = iota
+	// HorizontalCenterBlock positions the entire block of text center rather than just the line horizontally
+	HorizontalCenterBlock
+	// RightBlock positions the entire block of text right rather than just the line horizontally
+	RightBlock
+)
+
+// Interface enforcement
+var _ WrapperOption = LeftBLock
+
+// ApplyWrapperConfig Stores the position against the wrapper object
+func (hp HorizontalBlockPosition) ApplyWrapperConfig(wr interface{}) {
+	switch block := wr.(type) {
+	case interface{ horizontalPosition(HorizontalBlockPosition) }:
+		block.horizontalPosition(hp)
+	default:
+		log.Printf("can't apply")
+	}
+}
+
+// VerticalBlockPosition information about how to position the entire block of text rather than just the line vertically
+type VerticalBlockPosition int
+
+const (
+	// TopBLock positions the entire block of text top
+	TopBLock VerticalBlockPosition = iota
+	// VerticalCenterBlock positions the entire block of text center
+	VerticalCenterBlock
+	// BottomBlock positions the entire block of text bottom
+	BottomBlock
+)
+
+// Interface enforcement
+var _ WrapperOption = TopBLock
+
+// ApplyWrapperConfig Stores the position against the wrapper object
+func (hp VerticalBlockPosition) ApplyWrapperConfig(wr interface{}) {
+	switch block := wr.(type) {
+	case interface{ verticalPosition(VerticalBlockPosition) }:
+		block.verticalPosition(hp)
+	default:
+		log.Printf("can't apply")
 	}
 }

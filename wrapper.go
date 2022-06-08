@@ -8,12 +8,24 @@ import (
 
 // SimpleWrapper quick and dirty wrapper.
 type SimpleWrapper struct {
-	folderOptions []FolderOption
-	boxerOptions  []BoxerOption
-	boxer         Boxer
-	fontDrawer    *font.Drawer
-	currentPage   int
-	boxCount      int
+	folderOptions           []FolderOption
+	boxerOptions            []BoxerOption
+	boxer                   Boxer
+	fontDrawer              *font.Drawer
+	currentPage             int
+	boxCount                int
+	horizontalBlockPosition HorizontalBlockPosition
+	verticalBlockPosition   VerticalBlockPosition
+}
+
+// horizontalPosition sets the horizontalBlockPosition
+func (sw *SimpleWrapper) horizontalPosition(hp HorizontalBlockPosition) {
+	sw.horizontalBlockPosition = hp
+}
+
+// verticalPosition sets the verticalBlockPosition
+func (sw *SimpleWrapper) verticalPosition(hp VerticalBlockPosition) {
+	sw.verticalBlockPosition = hp
 }
 
 // addFoldConfig allows passing down of FolderOption
@@ -48,13 +60,19 @@ func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *Simple
 	return sw
 }
 
+// HorizontalLinePositioner is a simple interface denoting a getter
+type HorizontalLinePositioner interface {
+	getHorizontalLinePosition() HorizontalLinePosition
+}
+
 // RenderLines draws the boxes for the given lines. on the image, starting at the specified point ignoring the original
-// boundaries but maintaining the wrapping
+// boundaries but maintaining the wrapping. Also applies alignment options.
 func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point, options ...DrawOption) error {
 	bounds := i.Bounds()
+	offset := sw.calculateAlignmentOffset(ls, bounds)
 	for _, l := range ls {
 		s := l.Size()
-		if l, ok := l.(interface{ getHorizontalLinePosition() HorizontalLinePosition }); ok {
+		if l, ok := l.(HorizontalLinePositioner); ok {
 			switch l.getHorizontalLinePosition() {
 			case HorizontalCenterLines:
 				s = s.Add(image.Pt((bounds.Max.X-(s.Max.X-s.Min.X))/2, 0))
@@ -62,13 +80,42 @@ func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point, options
 				s = s.Add(image.Pt(bounds.Max.X-(s.Max.X-s.Min.X), 0))
 			}
 		}
-		rgba := i.SubImage(s.Add(at)).(Image)
+		rgba := i.SubImage(s.Add(offset).Add(at)).(Image)
 		if err := l.DrawLine(rgba, options...); err != nil {
 			return fmt.Errorf("drawing text: %s", err)
 		}
 		at.Y += s.Dy()
 	}
 	return nil
+}
+
+// calculateAlignmentOffset calculates the appropriate alignment offset for the block alignments VerticalBlockPosition
+// and HorizontalBlockPosition
+func (sw *SimpleWrapper) calculateAlignmentOffset(ls []Line, bounds image.Rectangle) (offset image.Point) {
+	var actualSize *image.Point
+	if sw.horizontalBlockPosition != LeftBLock || sw.verticalBlockPosition != TopBLock {
+		actualSize = &image.Point{}
+		for _, l := range ls {
+			s := l.Size()
+			actualSize.Y += s.Dy()
+			if s.Dx() > actualSize.X {
+				actualSize.X = s.Dx()
+			}
+		}
+	}
+	switch sw.horizontalBlockPosition {
+	case HorizontalCenterBlock:
+		offset.X = (bounds.Dx() - actualSize.X) / 2
+	case RightBlock:
+		offset.X = bounds.Dx() - actualSize.X
+	}
+	switch sw.verticalBlockPosition {
+	case VerticalCenterBlock:
+		offset.Y = (bounds.Dy() - actualSize.Y) / 2
+	case BottomBlock:
+		offset.Y = bounds.Dy() - actualSize.Y
+	}
+	return offset
 }
 
 // SimpleWrapTextToRect calculates and returns the position of each box and the image.Point it would end.

@@ -201,6 +201,22 @@ func(box Box, drawOps *DrawConfig, bps *BoxPositionStats) Box
 Which is executed just before each box is drawn if provided. This allows you to substitute a box, such as with an empty
 box if you don't wish for it to be drawn, or you could use it to mask input.
 
+
+### Positioning functions: `wordwrap.HorizontalCenterLines` `wordwrap.RightLines` `wordwrap.HorizontalCenterBlock` `wordwrap.RightBlock` `wordwrap.VerticalCenterBlock` `wordwrap.BottomBlock`
+
+Vertical or horizontally justifies or positions the lines or block, as per below.
+
+Block is the entire block of text, while the line is just each line individually.
+
+| Option                           | Result                   | Usage                                                                              |
+|----------------------------------|--------------------------|------------------------------------------------------------------------------------|
+| `wordwrap.HorizontalCenterLines` | ![](images/sample10.png) | ```wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.HorizontalCenterLines)``` | 
+| `wordwrap.RightLines`            | ![](images/sample11.png) | ```wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.RightLines)```            | 
+| `wordwrap.HorizontalCenterBlock` | ![](images/sample12.png) | ```wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.HorizontalCenterBlock)``` | 
+| `wordwrap.RightBlock`            | ![](images/sample13.png) | ```wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.RightBlock)```            | 
+| `wordwrap.VerticalCenterBlock`   | ![](images/sample14.png) | ```wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.VerticalCenterBlock)```   | 
+| `wordwrap.BottomBlock`           | ![](images/sample15.png) | ```wordwrap.SimpleWrapTextToImage(text, i, grf, wordwrap.BottomBlock)```           | 
+
 ## CLI app
 
 For demo purposes there is a CLI app in `cmd/simplewraptoimage`
