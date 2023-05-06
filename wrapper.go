@@ -35,7 +35,8 @@ func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 
 // SimpleWrapTextToImage all in one helper function to wrap text onto an image. Use image.Image's SubImage() to specify
 // the exact location to render:
-// 		SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
+//
+//	SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
 	sw := NewSimpleWrapper(text, grf, opts...)
 	ls, _, err := sw.TextToRect(i.Bounds())
@@ -137,13 +138,33 @@ func (sw *SimpleWrapper) addBoxConfig(bo BoxerOption) {
 	sw.boxerOptions = append(sw.boxerOptions, bo)
 }
 
+type FitterConfig struct {
+	IgnoreY bool
+}
+
+type FitterOption interface {
+	Apply(*FitterConfig)
+}
+
+type FitterIgnoreY struct{}
+
+func (fiy FitterIgnoreY) Apply(c *FitterConfig) {
+	c.IgnoreY = true
+}
+
+var _ FitterOption = (*FitterIgnoreY)(nil)
+
 // TextToRect calculates and returns the position of each box and the image.Point it would end.
-func (sw *SimpleWrapper) TextToRect(r image.Rectangle) ([]Line, image.Point, error) {
+func (sw *SimpleWrapper) TextToRect(r image.Rectangle, ops ...FitterOption) ([]Line, image.Point, error) {
+	config := FitterConfig{}
+	for _, op := range ops {
+		op.Apply(&config)
+	}
 	ls := make([]Line, 0)
 	p := r.Min
 	sf := NewSimpleFolder(sw.boxer, r, sw.fontDrawer, sw.folderOptions...)
 	pageBoxCount := 0
-	for (p.Y - r.Min.Y) <= r.Dy() {
+	for (p.Y-r.Min.Y) <= r.Dy() || config.IgnoreY {
 		l, err := sf.Next(r.Dy() - (p.Y - r.Min.Y))
 		if err != nil {
 			return nil, image.Point{}, fmt.Errorf("boxing text at line %d: %w", len(ls), err)
