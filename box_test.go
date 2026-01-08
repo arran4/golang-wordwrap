@@ -2,11 +2,13 @@ package wordwrap
 
 import (
 	"github.com/arran4/golang-wordwrap/util"
+	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
 	"image"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestSimpleBoxer_BoxNextWord(t *testing.T) {
@@ -291,4 +293,49 @@ func FontFace24DPI180ForTest(t *testing.T) font.Face {
 	}
 	grf := util.GetFontFace(24, 180, gr)
 	return grf
+}
+
+func GoRegularForTest(t *testing.T) *truetype.Font {
+	gr, err := util.OpenFont("goregular")
+	if err != nil {
+		t.Errorf("Error opening font %s: %s", "goregular", err)
+	}
+	return gr
+}
+
+func GoBoldForTest(t *testing.T) *truetype.Font {
+	gr, err := util.OpenFont("gobold")
+	if err != nil {
+		t.Errorf("Error opening font %s: %s", "gobold", err)
+	}
+	return gr
+}
+
+func TestSimpleBoxer_Next_InfiniteLoop(t *testing.T) {
+	face := FontFace16DPI180ForTest(t)
+	d := &font.Drawer{
+		Src:  image.NewUniform(colornames.Black),
+		Face: face,
+	}
+	b := NewSimpleBoxerFromContent([]*Content{
+		NewContent(""),
+	}, d)
+	done := make(chan bool)
+	go func() {
+		for {
+			box, _, err := b.Next()
+			if err != nil {
+				t.Error(err)
+			}
+			if box == nil {
+				break
+			}
+		}
+		done <- true
+	}()
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Test timed out, infinite loop detected")
+	}
 }
