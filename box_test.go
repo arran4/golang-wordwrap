@@ -2,13 +2,11 @@ package wordwrap
 
 import (
 	"github.com/arran4/golang-wordwrap/util"
-	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
 	"image"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestSimpleBoxer_BoxNextWord(t *testing.T) {
@@ -16,7 +14,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 	type args struct {
 		fce   font.Face
 		color image.Image
-		text  []rune
+		text  string
 	}
 	tests := []struct {
 		name             string
@@ -33,7 +31,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("OnEWorD"),
+				text:  "OnEWorD",
 			},
 			wantBoxString: "OnEWorD",
 			wantN:         len("OnEWorD"),
@@ -44,7 +42,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune(""),
+				text:  "",
 			},
 			wantBoxString: "",
 			wantN:         len(""),
@@ -55,7 +53,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("   "),
+				text:  "   ",
 			},
 			wantBoxString: "   ",
 			wantN:         len("   "),
@@ -66,7 +64,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("two words"),
+				text:  "two words",
 			},
 			wantBoxString: "two",
 			wantN:         len("two"),
@@ -77,7 +75,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("two    words"),
+				text:  "two    words",
 			},
 			wantBoxString: "two",
 			wantN:         len("two"),
@@ -88,7 +86,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("    words"),
+				text:  "    words",
 			},
 			wantBoxString: "    ",
 			wantN:         len("    "),
@@ -99,7 +97,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("words\r\nhello"),
+				text:  "words\r\nhello",
 			},
 			wantBoxString: "words",
 			wantN:         len("words"),
@@ -110,7 +108,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("words\nhello"),
+				text:  "words\nhello",
 			},
 			wantBoxString: "words",
 			wantN:         len("words"),
@@ -121,7 +119,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("    \r\nhello"),
+				text:  "    \r\nhello",
 			},
 			wantBoxString: "    ",
 			wantN:         len("    "),
@@ -132,7 +130,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("    \nhello"),
+				text:  "    \nhello",
 			},
 			wantBoxString: "    ",
 			wantN:         len("    "),
@@ -143,7 +141,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\n"),
+				text:  "\n",
 			},
 			wantN:            len("\n"),
 			wantLineBreakBox: true,
@@ -153,7 +151,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\nhello"),
+				text:  "\nhello",
 			},
 			wantN:            len("\n"),
 			wantLineBreakBox: true,
@@ -163,7 +161,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\n "),
+				text:  "\n ",
 			},
 			wantN:            len("\n"),
 			wantLineBreakBox: true,
@@ -173,7 +171,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\r\n"),
+				text:  "\r\n",
 			},
 			wantN:            len("\r\n"),
 			wantLineBreakBox: true,
@@ -183,7 +181,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\r\nword"),
+				text:  "\r\nword",
 			},
 			wantN:            len("\r\n"),
 			wantLineBreakBox: true,
@@ -193,7 +191,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\r\n    "),
+				text:  "\r\n    ",
 			},
 			wantN:            len("\r\n"),
 			wantLineBreakBox: true,
@@ -203,7 +201,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\r\n\n"),
+				text:  "\r\n\n",
 			},
 			wantN:            len("\r\n"),
 			wantLineBreakBox: true,
@@ -213,7 +211,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune("\r\n\n\n"),
+				text:  "\r\n\n\n",
 			},
 			wantN:            len("\r\n"),
 			wantLineBreakBox: true,
@@ -223,14 +221,16 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 			args: args{
 				fce:   grf,
 				color: image.NewUniform(colornames.Black),
-				text:  []rune(""),
+				text:  "",
 			},
 			wantNilBox: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sb := NewSimpleBoxer(tt.args.text, &font.Drawer{
+			sb := NewSimpleBoxer([]*Content{
+				NewContent(tt.args.text, WithFont(tt.args.fce)),
+			}, &font.Drawer{
 				Src:  tt.args.color,
 				Face: tt.args.fce,
 			})
@@ -293,49 +293,4 @@ func FontFace24DPI180ForTest(t *testing.T) font.Face {
 	}
 	grf := util.GetFontFace(24, 180, gr)
 	return grf
-}
-
-func GoRegularForTest(t *testing.T) *truetype.Font {
-	gr, err := util.OpenFont("goregular")
-	if err != nil {
-		t.Errorf("Error opening font %s: %s", "goregular", err)
-	}
-	return gr
-}
-
-func GoBoldForTest(t *testing.T) *truetype.Font {
-	gr, err := util.OpenFont("gobold")
-	if err != nil {
-		t.Errorf("Error opening font %s: %s", "gobold", err)
-	}
-	return gr
-}
-
-func TestSimpleBoxer_Next_InfiniteLoop(t *testing.T) {
-	face := FontFace16DPI180ForTest(t)
-	d := &font.Drawer{
-		Src:  image.NewUniform(colornames.Black),
-		Face: face,
-	}
-	b := NewSimpleBoxerFromContent([]*Content{
-		NewContent(""),
-	}, d)
-	done := make(chan bool)
-	go func() {
-		for {
-			box, _, err := b.Next()
-			if err != nil {
-				t.Error(err)
-			}
-			if box == nil {
-				break
-			}
-		}
-		done <- true
-	}()
-	select {
-	case <-done:
-	case <-time.After(1 * time.Second):
-		t.Fatal("Test timed out, infinite loop detected")
-	}
 }

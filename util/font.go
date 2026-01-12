@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
 )
 
@@ -32,8 +31,6 @@ func FontByName(name string) ([]byte, error) {
 	switch name {
 	case "goregular":
 		return goregular.TTF, nil
-	case "gobold":
-		return gobold.TTF, nil
 	}
 	return nil, errors.New("font not found")
 }

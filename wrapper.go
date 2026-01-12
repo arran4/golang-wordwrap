@@ -37,8 +37,8 @@ func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 // the exact location to render:
 //
 //	SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
-func SimpleWrapTextToImage(i Image, grf font.Face, opts []WrapperOption, contents ...*Content) error {
-	sw := NewSimpleWrapper(grf, opts, contents...)
+func SimpleWrapTextToImage(i Image, opts []WrapperOption, cs ...*Content) error {
+	sw := NewSimpleWrapper(opts, cs...)
 	ls, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
@@ -48,16 +48,15 @@ func SimpleWrapTextToImage(i Image, grf font.Face, opts []WrapperOption, content
 
 // NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
 // assumes black text
-func NewSimpleWrapper(grf font.Face, opts []WrapperOption, contents ...*Content) *SimpleWrapper {
+func NewSimpleWrapper(opts []WrapperOption, cs ...*Content) *SimpleWrapper {
 	fontDrawer := &font.Drawer{
-		Src:  image.NewUniform(image.Black),
-		Face: grf,
+		Src: image.NewUniform(image.Black),
 	}
 	sw := &SimpleWrapper{
 		fontDrawer: fontDrawer,
 	}
-	sw.ApplyOptions(opts)
-	sw.boxer = NewSimpleBoxerFromContent(contents, fontDrawer, sw.boxerOptions...)
+	sw.ApplyOptions(opts...)
+	sw.boxer = NewSimpleBoxer(cs, fontDrawer, sw.boxerOptions...)
 	return sw
 }
 
@@ -120,14 +119,14 @@ func (sw *SimpleWrapper) calculateAlignmentOffset(ls []Line, bounds image.Rectan
 }
 
 // SimpleWrapTextToRect calculates and returns the position of each box and the image.Point it would end.
-func SimpleWrapTextToRect(r image.Rectangle, grf font.Face, opts []WrapperOption, contents ...*Content) (*SimpleWrapper, []Line, image.Point, error) {
-	sw := NewSimpleWrapper(grf, opts, contents...)
+func SimpleWrapTextToRect(r image.Rectangle, opts []WrapperOption, cs ...*Content) (*SimpleWrapper, []Line, image.Point, error) {
+	sw := NewSimpleWrapper(opts, cs...)
 	l, p, err := sw.TextToRect(r)
 	return sw, l, p, err
 }
 
 // ApplyOptions allows the application of options to the SimpleWrapper (Such as new fonts, or turning on / off boxes.
-func (sw *SimpleWrapper) ApplyOptions(opts []WrapperOption) {
+func (sw *SimpleWrapper) ApplyOptions(opts ...WrapperOption) {
 	for _, opt := range opts {
 		opt.ApplyWrapperConfig(sw)
 	}

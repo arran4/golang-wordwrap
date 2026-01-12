@@ -64,12 +64,12 @@ func IsLF(r rune) bool {
 // the calling Folder that. Putting the elements in the correct Box.
 type SimpleBoxer struct {
 	postBoxOptions []func(Box)
+	contents       []*Content
+	contentIndex   int
 	n              int
 	fontDrawer     *font.Drawer
 	Grabber        func(text []rune) (int, []rune, int)
 	cacheQueue     []Box
-	contents       []*Content
-	contentIndex   int
 }
 
 // Ensures that SimpleBoxer fits model
@@ -77,14 +77,10 @@ var _ Boxer = (*SimpleBoxer)(nil)
 
 // NewSimpleBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
 // the calling Folder that. Putting the elements in the correct Box.
-func NewSimpleBoxer(text []rune, drawer *font.Drawer, options ...BoxerOption) *SimpleBoxer {
-	return NewSimpleBoxerFromContent([]*Content{NewContent(string(text))}, drawer, options...)
-}
-
-// NewSimpleBoxerFromContent creates a new SimpleBoxer from a slice of Content objects.
-func NewSimpleBoxerFromContent(contents []*Content, drawer *font.Drawer, options ...BoxerOption) *SimpleBoxer {
+func NewSimpleBoxer(contents []*Content, drawer *font.Drawer, options ...BoxerOption) *SimpleBoxer {
 	sb := &SimpleBoxer{
 		contents:   contents,
+		n:          0,
 		fontDrawer: drawer,
 		Grabber:    SimpleBoxerGrab,
 	}
@@ -96,21 +92,34 @@ func NewSimpleBoxerFromContent(contents []*Content, drawer *font.Drawer, options
 
 // Pos current parser position.
 func (sb *SimpleBoxer) Pos() int {
-	r := 0
+	pos := 0
 	for i := 0; i < sb.contentIndex; i++ {
-		r += len(sb.contents[i].Text)
+		pos += len([]rune(sb.contents[i].text))
 	}
-	r += sb.n
-	for _, e := range sb.cacheQueue {
-		r -= e.Len()
-	}
-	return r
-}
+	pos += sb.n
 
+	for _, e := range sb.cacheQueue {
+		pos -= e.Len()
+	}
+	return pos
+}
 
 // HasNext unprocessed bytes exist
 func (sb *SimpleBoxer) HasNext() bool {
-	return len(sb.cacheQueue) > 0 || (sb.contentIndex < len(sb.contents) && (sb.n < len(sb.contents[sb.contentIndex].Text) || sb.contentIndex < len(sb.contents)-1))
+	if len(sb.cacheQueue) > 0 {
+		return true
+	}
+	for i := sb.contentIndex; i < len(sb.contents); i++ {
+		text := []rune(sb.contents[i].text)
+		start := 0
+		if i == sb.contentIndex {
+			start = sb.n
+		}
+		if start < len(text) {
+			return true
+		}
+	}
+	return false
 }
 
 // SetFontDrawer Changes the default font
@@ -121,6 +130,15 @@ func (sb *SimpleBoxer) SetFontDrawer(face *font.Drawer) {
 // Back goes back i spaces (ie unreads)
 func (sb *SimpleBoxer) Back(i int) {
 	sb.n -= i
+	for sb.n < 0 {
+		sb.contentIndex--
+		if sb.contentIndex < 0 {
+			sb.contentIndex = 0
+			sb.n = 0
+			break
+		}
+		sb.n += len([]rune(sb.contents[sb.contentIndex].text))
+	}
 }
 
 // FontDrawer encapsulates default fonts and more
@@ -152,49 +170,61 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 	if len(sb.cacheQueue) > 0 {
 		return sb.Shift(), 0, nil
 	}
-	for sb.contentIndex < len(sb.contents) {
-		content := sb.contents[sb.contentIndex]
-		if content.Style.Font != nil {
-			sb.fontDrawer.Face = content.Style.Font
-		}
-		text := []rune(content.Text)
-		if sb.n < len(text) {
-			n, rs, rmode := sb.Grabber(text[sb.n:])
-			if n > 0 {
-				sb.n += n
-				var b Box
-				drawer := sb.fontDrawer
-				switch rmode {
-				case RNIL:
-					// fallthrough
-				case RSimpleBox, RCRLF:
-					t := string(rs)
-					var err error
-					b, err = NewSimpleTextBox(drawer, t)
-					if err != nil {
-						return nil, 0, err
-					}
-				default:
-					return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
-				}
-				switch rmode {
-				case RCRLF:
-					b = &LineBreakBox{
-						Box: b,
-					}
-				}
-				for _, option := range sb.postBoxOptions {
-					option(b)
-				}
-				return b, n, nil
-			}
-		}
+	if sb.contentIndex >= len(sb.contents) {
+		return nil, 0, nil
+	}
+	currentContent := sb.contents[sb.contentIndex]
+	text := []rune(currentContent.text)
+	if sb.n >= len(text) {
 		sb.contentIndex++
 		sb.n = 0
+		if sb.contentIndex >= len(sb.contents) {
+			return nil, 0, nil
+		}
+		return sb.Next()
 	}
-	return nil, 0, nil
+	n, rs, rmode := sb.Grabber(text[sb.n:])
+	sb.n += n
+	var b Box
+	drawer := sb.fontDrawer
+	if currentContent.style != nil && currentContent.style.font != nil {
+		drawer = &font.Drawer{
+			Src:  sb.fontDrawer.Src,
+			Face: currentContent.style.font,
+		}
+	}
+	switch rmode {
+	case RNIL:
+		if sb.n >= len(text) {
+			sb.contentIndex++
+			sb.n = 0
+			if sb.contentIndex >= len(sb.contents) {
+				return nil, 0, nil
+			}
+			return sb.Next()
+		}
+		return nil, n, nil
+	case RSimpleBox, RCRLF:
+		t := string(rs)
+		var err error
+		b, err = NewSimpleTextBox(drawer, t)
+		if err != nil {
+			return nil, 0, err
+		}
+	default:
+		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
+	}
+	switch rmode {
+	case RCRLF:
+		b = &LineBreakBox{
+			Box: b,
+		}
+	}
+	for _, option := range sb.postBoxOptions {
+		option(b)
+	}
+	return b, n, nil
 }
-
 
 // Matches objects
 const (
@@ -205,9 +235,6 @@ const (
 
 // SimpleBoxerGrab Consumer of characters until change. Could be made to conform to strings.Scanner
 func SimpleBoxerGrab(text []rune) (int, []rune, int) {
-	if len(text) == 0 {
-		return 0, nil, RNIL
-	}
 	n := 0
 	rmode := RNIL
 	var mode func(rune) bool
@@ -246,7 +273,6 @@ func SimpleBoxerGrab(text []rune) (int, []rune, int) {
 	}
 	return n, text[:n], rmode
 }
-
 
 // IsSpaceButNotCRLF Because spaces are different to CR and LF for word wrapping
 func IsSpaceButNotCRLF(r rune) bool {

@@ -60,27 +60,6 @@ func (b boxerOptionFunc) ApplyWrapperConfig(wr interface{}) {
 	}
 }
 
-type contentOptionFunc func(*Content)
-
-func (f contentOptionFunc) ApplyContentOption(c *Content) {
-	f(c)
-}
-
-// WithFont sets the font for a piece of content.
-func WithFont(f font.Face) ContentOption {
-	return contentOptionFunc(func(c *Content) {
-		c.Style.Font = f
-	})
-}
-
-// WithFontSize sets the font size for a piece of content.
-func WithFontSize(s float64) ContentOption {
-	return contentOptionFunc(func(c *Content) {
-		c.Style.FontSize = s
-	})
-}
-
-
 // ApplyBoxConfig Converts function into an object to match interface
 func (b boxerOptionFunc) ApplyBoxConfig(br interface{}) {
 	b(br)

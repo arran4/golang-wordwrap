@@ -1,33 +1,38 @@
 package wordwrap
 
-import (
-	"golang.org/x/image/font"
-)
+import "golang.org/x/image/font"
 
-// Content represents a piece of styled text.
+// Content is a struct that holds the text and style of a piece of content.
 type Content struct {
-	Text  string
-	Style Style
+	text  string
+	style *Style
 }
 
-// Style represents the style of a piece of text.
+// Style is a struct that holds the font and font size of a piece of content.
 type Style struct {
-	Font     font.Face
-	FontSize float64
+	font font.Face
 }
 
-// NewContent creates a new Content object.
-func NewContent(text string, options ...ContentOption) *Content {
+// NewContent creates a new Content object with the given text and options.
+func NewContent(text string, opts ...ContentOption) *Content {
 	c := &Content{
-		Text: text,
+		text: text,
 	}
-	for _, option := range options {
-		option.ApplyContentOption(c)
+	for _, opt := range opts {
+		opt(c)
 	}
 	return c
 }
 
-// ContentOption is an option for a Content object.
-type ContentOption interface {
-	ApplyContentOption(*Content)
+// ContentOption is a function that can be used to configure a Content object.
+type ContentOption func(*Content)
+
+// WithFont sets the font of a Content object.
+func WithFont(font font.Face) ContentOption {
+	return func(c *Content) {
+		if c.style == nil {
+			c.style = &Style{}
+		}
+		c.style.font = font
+	}
 }
