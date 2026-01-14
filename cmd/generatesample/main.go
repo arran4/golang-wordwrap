@@ -67,7 +67,7 @@ func SampleType1(width, height int, fontsize, dpi float64, fontname, textsource,
 	if err != nil {
 		log.Panicf("Text fetch error: %s", err)
 	}
-	if err := wordwrap.SimpleWrapTextToImage(i, opts, wordwrap.NewContent(text, wordwrap.WithFont(grf))); err != nil {
+	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, opts...); err != nil {
 		log.Panicf("Text wrap and draw error: %s", err)
 	}
 	if err := SaveFile(i, outfilename); err != nil {

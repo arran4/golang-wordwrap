@@ -170,60 +170,62 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 	if len(sb.cacheQueue) > 0 {
 		return sb.Shift(), 0, nil
 	}
-	if sb.contentIndex >= len(sb.contents) {
-		return nil, 0, nil
-	}
-	currentContent := sb.contents[sb.contentIndex]
-	text := []rune(currentContent.text)
-	if sb.n >= len(text) {
-		sb.contentIndex++
-		sb.n = 0
+	for {
 		if sb.contentIndex >= len(sb.contents) {
 			return nil, 0, nil
 		}
-		return sb.Next()
-	}
-	n, rs, rmode := sb.Grabber(text[sb.n:])
-	sb.n += n
-	var b Box
-	drawer := sb.fontDrawer
-	if currentContent.style != nil && currentContent.style.font != nil {
-		drawer = &font.Drawer{
-			Src:  sb.fontDrawer.Src,
-			Face: currentContent.style.font,
-		}
-	}
-	switch rmode {
-	case RNIL:
+		currentContent := sb.contents[sb.contentIndex]
+		text := []rune(currentContent.text)
 		if sb.n >= len(text) {
 			sb.contentIndex++
 			sb.n = 0
 			if sb.contentIndex >= len(sb.contents) {
 				return nil, 0, nil
 			}
-			return sb.Next()
+			continue
 		}
-		return nil, n, nil
-	case RSimpleBox, RCRLF:
-		t := string(rs)
-		var err error
-		b, err = NewSimpleTextBox(drawer, t)
-		if err != nil {
-			return nil, 0, err
+		n, rs, rmode := sb.Grabber(text[sb.n:])
+		sb.n += n
+		var b Box
+		drawer := sb.fontDrawer
+		if currentContent.style != nil && currentContent.style.font != nil {
+			drawer = &font.Drawer{
+				Src:  sb.fontDrawer.Src,
+				Face: currentContent.style.font,
+			}
 		}
-	default:
-		return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
-	}
-	switch rmode {
-	case RCRLF:
-		b = &LineBreakBox{
-			Box: b,
+		switch rmode {
+		case RNIL:
+			if sb.n >= len(text) {
+				sb.contentIndex++
+				sb.n = 0
+				if sb.contentIndex >= len(sb.contents) {
+					return nil, 0, nil
+				}
+				continue
+			}
+			return nil, n, nil
+		case RSimpleBox, RCRLF:
+			t := string(rs)
+			var err error
+			b, err = NewSimpleTextBox(drawer, t)
+			if err != nil {
+				return nil, 0, err
+			}
+		default:
+			return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
 		}
+		switch rmode {
+		case RCRLF:
+			b = &LineBreakBox{
+				Box: b,
+			}
+		}
+		for _, option := range sb.postBoxOptions {
+			option(b)
+		}
+		return b, n, nil
 	}
-	for _, option := range sb.postBoxOptions {
-		option(b)
-	}
-	return b, n, nil
 }
 
 // Matches objects

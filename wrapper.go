@@ -37,8 +37,8 @@ func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 // the exact location to render:
 //
 //	SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
-func SimpleWrapTextToImage(i Image, opts []WrapperOption, cs ...*Content) error {
-	sw := NewSimpleWrapper(opts, cs...)
+func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
+	sw := NewSimpleWrapper(text, grf, opts...)
 	ls, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
@@ -48,15 +48,16 @@ func SimpleWrapTextToImage(i Image, opts []WrapperOption, cs ...*Content) error 
 
 // NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
 // assumes black text
-func NewSimpleWrapper(opts []WrapperOption, cs ...*Content) *SimpleWrapper {
+func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
 	fontDrawer := &font.Drawer{
-		Src: image.NewUniform(image.Black),
+		Src:  image.NewUniform(image.Black),
+		Face: grf,
 	}
 	sw := &SimpleWrapper{
 		fontDrawer: fontDrawer,
 	}
 	sw.ApplyOptions(opts...)
-	sw.boxer = NewSimpleBoxer(cs, fontDrawer, sw.boxerOptions...)
+	sw.boxer = NewSimpleBoxer([]rune(text), fontDrawer, sw.boxerOptions...)
 	return sw
 }
 
@@ -119,8 +120,8 @@ func (sw *SimpleWrapper) calculateAlignmentOffset(ls []Line, bounds image.Rectan
 }
 
 // SimpleWrapTextToRect calculates and returns the position of each box and the image.Point it would end.
-func SimpleWrapTextToRect(r image.Rectangle, opts []WrapperOption, cs ...*Content) (*SimpleWrapper, []Line, image.Point, error) {
-	sw := NewSimpleWrapper(opts, cs...)
+func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
+	sw := NewSimpleWrapper(text, grf, opts...)
 	l, p, err := sw.TextToRect(r)
 	return sw, l, p, err
 }

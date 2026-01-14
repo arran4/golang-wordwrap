@@ -53,7 +53,7 @@ func main() {
 	if *yoverflow > 0 {
 		opts = append(opts, wordwrap.YOverflow(wordwrap.OverflowMode(*yoverflow)))
 	}
-	if err := wordwrap.SimpleWrapTextToImage(i, opts, wordwrap.NewContent(text, wordwrap.WithFont(grf))); err != nil {
+	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, opts...); err != nil {
 		log.Panicf("Text wrap and draw error: %s", err)
 	}
 	if err := SaveFile(i, *outfilename); err != nil {
