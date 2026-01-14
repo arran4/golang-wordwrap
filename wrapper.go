@@ -38,7 +38,7 @@ func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
 //
 //	SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
-	sw := NewSimpleWrapper(text, grf, opts...)
+	sw := NewSimpleWrapper([]*Content{{text: text}}, grf, opts...)
 	ls, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
@@ -48,7 +48,7 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 
 // NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
 // assumes black text
-func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
+func NewSimpleWrapper(contents []*Content, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
 	fontDrawer := &font.Drawer{
 		Src:  image.NewUniform(image.Black),
 		Face: grf,
@@ -57,7 +57,7 @@ func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *Simple
 		fontDrawer: fontDrawer,
 	}
 	sw.ApplyOptions(opts...)
-	sw.boxer = NewSimpleBoxer([]rune(text), fontDrawer, sw.boxerOptions...)
+	sw.boxer = NewSimpleBoxer(contents, fontDrawer, sw.boxerOptions...)
 	return sw
 }
 
@@ -121,7 +121,7 @@ func (sw *SimpleWrapper) calculateAlignmentOffset(ls []Line, bounds image.Rectan
 
 // SimpleWrapTextToRect calculates and returns the position of each box and the image.Point it would end.
 func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
-	sw := NewSimpleWrapper(text, grf, opts...)
+	sw := NewSimpleWrapper([]*Content{{text: text}}, grf, opts...)
 	l, p, err := sw.TextToRect(r)
 	return sw, l, p, err
 }
