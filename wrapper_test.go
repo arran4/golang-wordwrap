@@ -154,6 +154,23 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 			r:       Shrink(SpaceFor(FontFace16DPI180ForTest(t), "Testing this! ↵↵↵"), image.Pt(0, 4)),
 			wantErr: true,
 		},
+		{
+			name: "Multiple fonts",
+			SimpleWrapper: NewWrapper(FontFace16DPI180ForTest(t),
+				"Testing ",
+				FontFace24DPI180ForTest(t),
+				"this! ",
+				"Testing this!",
+			),
+			r: SpaceFor(FontFace24DPI180ForTest(t), "Testing this! ", "Testing this!"),
+			wantPages: [][]string{
+				{
+					"Testing this! ",
+					"Testing this!",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
