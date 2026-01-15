@@ -13,7 +13,6 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -101,7 +100,7 @@ func GetText(fn string) (string, error) {
 		}
 		return string(b), nil
 	}
-	b, err := ioutil.ReadFile(fn)
+	b, err := os.ReadFile(fn)
 	if err != nil {
 		return "", fmt.Errorf("reading file %s: %w", fn, err)
 	}
