@@ -115,9 +115,10 @@ func TestSimpleFolder(t *testing.T) {
 }
 
 type FixedWordWidthBoxer struct {
-	text  []rune
-	n     int
-	queue []Box
+	text       []rune
+	n          int
+	queue      []Box
+	fontDrawer *font.Drawer
 }
 
 func (fwb *FixedWordWidthBoxer) Shift() Box {
@@ -142,15 +143,15 @@ func (fwb *FixedWordWidthBoxer) Push(box ...Box) {
 }
 
 func (fwb *FixedWordWidthBoxer) HasNext() bool {
-	panic("implement me")
+	return len(fwb.queue) > 0 || fwb.n < len(fwb.text)
 }
 
 func (fwb *FixedWordWidthBoxer) SetFontDrawer(face *font.Drawer) {
-	panic("implement me")
+	fwb.fontDrawer = face
 }
 
 func (fwb *FixedWordWidthBoxer) FontDrawer() *font.Drawer {
-	panic("implement me")
+	return fwb.fontDrawer
 }
 
 func (fwb *FixedWordWidthBoxer) Back(i int) {
