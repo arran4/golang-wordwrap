@@ -290,20 +290,24 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 	case *LineBreakBox:
 		done = true
 	default:
-		irdx := a.Ceil()
-		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
-		cdx := sf.container.Dx()
-		if irdx+szdx >= cdx {
+		// Check total width (Fixed Int26_6 addition then Ceil) against Container width (Int)
+		// irdx (Integers) is not precise enough for strict accumulation
+		currentWidthFixed := l.size.Max.X - l.size.Min.X
+		newTotalWidthFixed := currentWidthFixed + a
+		if newTotalWidthFixed.Ceil() > sf.container.Dx() {
 			if b.Whitespace() {
 				b = &LineBreakBox{
 					Box: b,
 				}
 				l.boxes = append(l.boxes, b)
+			} else if len(l.boxes) == 0 {
+				// If line is empty, we must add the box even if it overflows to prevent infinite loop/dropping.
+				// We do nothing here, falling through to l.Push(b, a) works.
 			} else {
 				sf.boxer.Push(b)
+				done = true
+				return done, nil
 			}
-			done = true
-			return done, nil
 		}
 	}
 	l.Push(b, a)

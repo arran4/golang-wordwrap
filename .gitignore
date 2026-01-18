@@ -4,3 +4,4 @@
 /cmd/dogoal/dogoal
 /cmd/generatesample/generatesample
 /cmd/simplewraptoimage/simplewraptoimage
+coverage.out

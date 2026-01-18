@@ -170,14 +170,19 @@ func (sw *SimpleWrapper) TextToSpecs(opts ...SpecOption) (*LayoutResult, error) 
 	marginH := config.Margin.Left + config.Margin.Right
 	marginV := config.Margin.Top + config.Margin.Bottom
 
+	// Pass 2: Layout with width constraints and unconstrained height
 	targetPageWidth := config.WidthFn(naturalContentWidth + marginH)
 	if targetPageWidth < marginH+1 {
 		targetPageWidth = marginH + 1
 	}
 	targetContentWidth := targetPageWidth - marginH
 
+	// We use a large height for layout to detect natural height after wrapping
+	// Then we apply HeightFn to constraint the final PageSize
+	layoutHeight := 1000000
+
 	sw.boxer.Reset()
-	lines2, p, err := sw.TextToRect(image.Rect(0, 0, targetContentWidth, inf))
+	lines2, p, err := sw.TextToRect(image.Rect(0, 0, targetContentWidth, layoutHeight))
 	if err != nil {
 		return nil, fmt.Errorf("layout pass failed: %w", err)
 	}

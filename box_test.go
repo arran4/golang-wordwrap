@@ -1,12 +1,14 @@
 package wordwrap
 
 import (
+	"image"
+	"image/color"
+	"reflect"
+	"testing"
+
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
-	"image"
-	"reflect"
-	"testing"
 )
 
 func TestSimpleBoxer_BoxNextWord(t *testing.T) {
@@ -291,4 +293,39 @@ func FontFace24DPI180ForTest(t *testing.T) font.Face {
 	}
 	grf := util.GetFontFace(24, 180, gr)
 	return grf
+}
+
+func TestSimpleBoxer_Reset(t *testing.T) {
+	text := "Hello World"
+	fontFace := FontFace16DPI180ForTest(t)
+	drawer := &font.Drawer{Face: fontFace, Src: image.NewUniform(color.Black)}
+
+	contents := []*Content{{text: text}}
+	boxer := NewSimpleBoxer(contents, drawer)
+
+	// Consume some boxes
+	_, _, err := boxer.Next()
+	if err != nil {
+		t.Fatalf("Next failed: %v", err)
+	}
+
+	// Reset
+	boxer.Reset()
+
+	// Should be at start
+	// "Hello" (SimpleTextBox)
+	b, _, err := boxer.Next()
+	if err != nil {
+		t.Fatalf("Next after Reset failed: %v", err)
+	}
+
+	sb, ok := b.(*SimpleTextBox)
+	if !ok {
+		t.Fatalf("Expected SimpleTextBox, got %T", b)
+	}
+
+	// Depending on boxer logic, first box of "Hello World" is "Hello"
+	if sb.Contents != "Hello" {
+		t.Errorf("Expected 'Hello', got '%s'", sb.Contents)
+	}
 }

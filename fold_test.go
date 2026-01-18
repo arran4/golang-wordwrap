@@ -53,11 +53,11 @@ func TestSimpleFolder(t *testing.T) {
 			}, image.Rect(0, 0, 6, 5), nil),
 			wantLines: []*WantedLine{
 				{
-					words: []string{"word", " ", "that", " ", "folder"},
+					words: []string{"word", " ", "that", " ", "folder", " "},
 					N:     len("word that folder "),
 				},
 				{
-					words: []string{"over", " ", "onto", " ", "a"},
+					words: []string{"over", " ", "onto", " ", "a", " "},
 					N:     len("over onto a "),
 				},
 				{
@@ -115,24 +115,30 @@ func TestSimpleFolder(t *testing.T) {
 }
 
 type FixedWordWidthBoxer struct {
-	text []rune
-	n    int
+	text  []rune
+	n     int
+	queue []Box
 }
 
 func (fwb *FixedWordWidthBoxer) Shift() Box {
-	panic("implement me")
+	if len(fwb.queue) > 0 {
+		b := fwb.queue[0]
+		fwb.queue = fwb.queue[1:]
+		return b
+	}
+	return nil
 }
 
 func (fwb *FixedWordWidthBoxer) Unshift(b ...Box) {
-	panic("implement me")
+	fwb.queue = append(append(make([]Box, 0, len(b)+len(fwb.queue)), b...), fwb.queue...)
 }
 
 func (fwb *FixedWordWidthBoxer) Pos() int {
-	panic("implement me")
+	return fwb.n
 }
 
 func (fwb *FixedWordWidthBoxer) Push(box ...Box) {
-	panic("implement me")
+	fwb.queue = append(fwb.queue, box...)
 }
 
 func (fwb *FixedWordWidthBoxer) HasNext() bool {
@@ -156,6 +162,10 @@ func (fwb *FixedWordWidthBoxer) Reset() {
 }
 
 func (fwb *FixedWordWidthBoxer) Next() (Box, int, error) {
+	if len(fwb.queue) > 0 {
+		b := fwb.Shift()
+		return b, fwb.n, nil // Pos doesn't change for queued items?
+	}
 	n, rs, rmode := SimpleBoxerGrab(fwb.text[fwb.n:])
 	var b Box
 	switch rmode {
