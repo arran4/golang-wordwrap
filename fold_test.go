@@ -2,11 +2,12 @@ package wordwrap
 
 import (
 	"fmt"
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"reflect"
 	"testing"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 func TestSimpleFolder(t *testing.T) {
@@ -148,6 +149,10 @@ func (fwb *FixedWordWidthBoxer) FontDrawer() *font.Drawer {
 
 func (fwb *FixedWordWidthBoxer) Back(i int) {
 	fwb.n -= i
+}
+
+func (fwb *FixedWordWidthBoxer) Reset() {
+	fwb.n = 0
 }
 
 func (fwb *FixedWordWidthBoxer) Next() (Box, int, error) {

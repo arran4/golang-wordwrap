@@ -49,6 +49,8 @@ type Boxer interface {
 	Unshift(b ...Box)
 	// Shift removes the first element but unlike Next doesn't attempt to generate a new one if there is nothing
 	Shift() Box
+	// Reset restarts the tokenization
+	Reset()
 }
 
 // IsCR Is a carriage return
@@ -61,6 +63,9 @@ func IsLF(r rune) bool {
 	return r == '\n'
 }
 
+// Tokenizer is a function that tokenizes the text
+type Tokenizer func(text []rune) (int, []rune, int)
+
 // SimpleBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
 // the calling Folder that. Putting the elements in the correct Box.
 type SimpleBoxer struct {
@@ -69,7 +74,7 @@ type SimpleBoxer struct {
 	contentIndex   int
 	n              int
 	fontDrawer     *font.Drawer
-	Grabber        func(text []rune) (int, []rune, int)
+	Tokenizer      Tokenizer
 	cacheQueue     []Box
 }
 
@@ -83,7 +88,7 @@ func NewSimpleBoxer(contents []*Content, drawer *font.Drawer, options ...BoxerOp
 		contents:   contents,
 		n:          0,
 		fontDrawer: drawer,
-		Grabber:    SimpleBoxerGrab,
+		Tokenizer:  LatinTokenizer,
 	}
 	for _, option := range options {
 		option.ApplyBoxConfig(sb)
@@ -91,57 +96,27 @@ func NewSimpleBoxer(contents []*Content, drawer *font.Drawer, options ...BoxerOp
 	return sb
 }
 
-// NewRichBoxer creates a new boxer using a variety of arguments to create the contents and options
+// Reset restarts the tokenization
+func (sb *SimpleBoxer) Reset() {
+	sb.n = 0
+	sb.contentIndex = 0
+	sb.cacheQueue = nil
+}
+
 // NewRichBoxer creates a new boxer using a variety of arguments to create the contents and options
 func NewRichBoxer(args ...interface{}) *RichBoxer {
-	var contents []*Content
-	var drawer *font.Drawer
-	var options []BoxerOption
-	var currentFont font.Face
-	var defaultFont font.Face
-
-	for _, arg := range args {
-		switch v := arg.(type) {
-		case []*Content:
-			contents = append(contents, v...)
-		case *Content:
-			contents = append(contents, v)
-		case font.Face:
-			currentFont = v
-			if defaultFont == nil {
-				defaultFont = v
-			}
-		case *font.Drawer:
-			drawer = v
-			currentFont = v.Face
-			if defaultFont == nil {
-				defaultFont = v.Face
-			}
-		case string:
-			c := NewContent(v)
-			if currentFont != nil {
-				c = NewContent(v, WithFont(currentFont))
-			}
-			contents = append(contents, c)
-		case BoxerOption:
-			options = append(options, v)
-		}
-	}
-
-	if drawer == nil && defaultFont != nil {
-		drawer = &font.Drawer{
-			Src:  image.NewUniform(image.Black),
-			Face: defaultFont,
-		}
-	}
+	contents, drawer, _, boxerOptions, _, tokenizer := ProcessRichArgs(args...)
 
 	sb := &RichBoxer{
 		contents:   contents,
 		n:          0,
 		fontDrawer: drawer,
-		Grabber:    SimpleBoxerGrab,
+		Tokenizer:  LatinTokenizer,
 	}
-	for _, option := range options {
+	if tokenizer != nil {
+		sb.Tokenizer = tokenizer
+	}
+	for _, option := range boxerOptions {
 		option.ApplyBoxConfig(sb)
 	}
 	return sb
@@ -155,12 +130,19 @@ type RichBoxer struct {
 	contentIndex   int
 	n              int
 	fontDrawer     *font.Drawer
-	Grabber        func(text []rune) (int, []rune, int)
+	Tokenizer      Tokenizer
 	cacheQueue     []Box
 }
 
 // Ensures that RichBoxer fits model
 var _ Boxer = (*RichBoxer)(nil)
+
+// Reset restarts the tokenization
+func (sb *RichBoxer) Reset() {
+	sb.n = 0
+	sb.contentIndex = 0
+	sb.cacheQueue = nil
+}
 
 // Pos current parser position.
 func (sb *RichBoxer) Pos() int {
@@ -175,6 +157,8 @@ func (sb *RichBoxer) Pos() int {
 	}
 	return pos
 }
+
+// ...
 
 // HasNext unprocessed bytes exist
 func (sb *RichBoxer) HasNext() bool {
@@ -235,69 +219,6 @@ func (sb *RichBoxer) Shift() Box {
 		return cb
 	}
 	return nil
-}
-
-// Next gets the next word in a Box
-func (sb *RichBoxer) Next() (Box, int, error) {
-	if len(sb.cacheQueue) > 0 {
-		return sb.Shift(), 0, nil
-	}
-	for {
-		if sb.contentIndex >= len(sb.contents) {
-			return nil, 0, nil
-		}
-		currentContent := sb.contents[sb.contentIndex]
-		text := []rune(currentContent.text)
-		if sb.n >= len(text) {
-			sb.contentIndex++
-			sb.n = 0
-			if sb.contentIndex >= len(sb.contents) {
-				return nil, 0, nil
-			}
-			continue
-		}
-		n, rs, rmode := sb.Grabber(text[sb.n:])
-		sb.n += n
-		var b Box
-		drawer := sb.fontDrawer
-		if currentContent.style != nil && currentContent.style.font != nil {
-			drawer = &font.Drawer{
-				Src:  sb.fontDrawer.Src,
-				Face: currentContent.style.font,
-			}
-		}
-		switch rmode {
-		case RNIL:
-			if sb.n >= len(text) {
-				sb.contentIndex++
-				sb.n = 0
-				if sb.contentIndex >= len(sb.contents) {
-					return nil, 0, nil
-				}
-				continue
-			}
-			return nil, n, nil
-		case RSimpleBox, RCRLF:
-			t := string(rs)
-			var err error
-			b, err = NewSimpleTextBox(drawer, t)
-			if err != nil {
-				return nil, 0, err
-			}
-		default:
-			return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
-		}
-		switch rmode {
-		case RCRLF:
-			b = &LineBreakBox{
-				Box: b,
-			}
-		}
-		for _, option := range sb.postBoxOptions {
-			option(b)
-		}
-		return b, n, nil
-	}
 }
 
 // Pos current parser position.
@@ -394,7 +315,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 			}
 			continue
 		}
-		n, rs, rmode := sb.Grabber(text[sb.n:])
+		n, rs, rmode := sb.Tokenizer(text[sb.n:])
 		sb.n += n
 		var b Box
 		drawer := sb.fontDrawer
@@ -436,6 +357,57 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 		}
 		return b, n, nil
 	}
+}
+
+// LatinTokenizer is the default tokenizer for latin languages
+var LatinTokenizer = SimpleBoxerGrab
+
+// StarTokenizer is a demo tokenizer that splits on stars
+func StarTokenizer(text []rune) (int, []rune, int) {
+	n := 0
+	rmode := RNIL
+	var mode func(rune) bool
+	for _, r := range text {
+		if mode == nil {
+			if r == '*' {
+				mode = Once(func(r rune) bool {
+					return r == '*'
+				})
+				rmode = RSimpleBox
+				n++
+				continue
+			} else if IsCR(r) {
+				mode = Once(func(r rune) bool {
+					if IsLF(r) {
+						rmode = RCRLF
+						return true
+					}
+					return false
+				})
+				n++
+				continue
+			} else if IsLF(r) {
+				rmode = RCRLF
+				n++
+				break
+			} else if !unicode.IsPrint(r) {
+				continue
+			} else if IsSpaceButNotCRLF(r) {
+				mode = IsSpaceButNotCRLF
+				rmode = RSimpleBox
+			} else {
+				rmode = RSimpleBox
+				mode = func(r rune) bool {
+					return r != '*' && !unicode.IsSpace(r)
+				}
+			}
+		}
+		if !mode(r) {
+			break
+		}
+		n++
+	}
+	return n, text[:n], rmode
 }
 
 // Matches objects
@@ -484,6 +456,139 @@ func SimpleBoxerGrab(text []rune) (int, []rune, int) {
 		n++
 	}
 	return n, text[:n], rmode
+}
+
+// Next gets the next box
+func (sb *RichBoxer) Next() (Box, int, error) {
+	if len(sb.cacheQueue) > 0 {
+		b := sb.cacheQueue[0]
+		sb.cacheQueue = sb.cacheQueue[1:]
+		return b, len([]rune(b.TextValue())), nil
+	}
+	for {
+		if sb.contentIndex >= len(sb.contents) {
+			return nil, 0, nil
+		}
+		currentContent := sb.contents[sb.contentIndex]
+		if sb.n == 0 && currentContent.image != nil {
+			sb.contentIndex++
+			sb.n = 0
+			var b Box
+			b = &ImageBox{
+				I: currentContent.image,
+			}
+			if currentContent.imageScale != 0 {
+				b = &ImageBox{
+					I:     currentContent.image,
+					Scale: currentContent.imageScale,
+				}
+			}
+			if currentContent.style != nil {
+				if currentContent.style.BackgroundColor != nil {
+					b = &BackgroundBox{
+						Box:        b,
+						Background: currentContent.style.BackgroundColor,
+					}
+				}
+				// Effects
+				if len(currentContent.style.Effects) > 0 {
+					b = &EffectBox{
+						Box:     b,
+						Effects: currentContent.style.Effects,
+					}
+				}
+				if currentContent.style.Alignment != AlignBaseline {
+					b = &AlignedBox{
+						Box:       b,
+						Alignment: currentContent.style.Alignment,
+					}
+				}
+			}
+			for _, option := range sb.postBoxOptions {
+				option(b)
+			}
+			return b, 1, nil
+		}
+		text := []rune(currentContent.text)
+		if sb.n >= len(text) {
+			sb.contentIndex++
+			sb.n = 0
+			continue
+		}
+		n, rs, rmode := sb.Tokenizer(text[sb.n:])
+		sb.n += n
+		var b Box
+		drawer := sb.fontDrawer
+		if currentContent.style != nil {
+			if currentContent.style.font != nil {
+				drawer = &font.Drawer{
+					Src:  sb.fontDrawer.Src,
+					Face: currentContent.style.font,
+				}
+			}
+			if currentContent.style.FontDrawerSrc != nil {
+				if drawer == sb.fontDrawer {
+					drawer = &font.Drawer{
+						Src:  sb.fontDrawer.Src,
+						Face: sb.fontDrawer.Face,
+					}
+				}
+				drawer.Src = currentContent.style.FontDrawerSrc
+			}
+		}
+
+		switch rmode {
+		case RNIL:
+			if sb.n >= len(text) {
+				sb.contentIndex++
+				sb.n = 0
+				if sb.contentIndex >= len(sb.contents) {
+					return nil, 0, nil
+				}
+				continue
+			}
+			return nil, n, nil
+		case RSimpleBox, RCRLF:
+			t := string(rs)
+			var err error
+			b, err = NewSimpleTextBox(drawer, t)
+			if err != nil {
+				return nil, 0, err
+			}
+		default:
+			return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
+		}
+		switch rmode {
+		case RCRLF:
+			b = &LineBreakBox{
+				Box: b,
+			}
+		}
+		if currentContent.style != nil {
+			if currentContent.style.BackgroundColor != nil {
+				b = &BackgroundBox{
+					Box:        b,
+					Background: currentContent.style.BackgroundColor,
+				}
+			}
+			if len(currentContent.style.Effects) > 0 {
+				b = &EffectBox{
+					Box:     b,
+					Effects: currentContent.style.Effects,
+				}
+			}
+			if currentContent.style.Alignment != AlignBaseline {
+				b = &AlignedBox{
+					Box:       b,
+					Alignment: currentContent.style.Alignment,
+				}
+			}
+		}
+		for _, option := range sb.postBoxOptions {
+			option(b)
+		}
+		return b, n, nil
+	}
 }
 
 // IsSpaceButNotCRLF Because spaces are different to CR and LF for word wrapping
@@ -690,6 +795,7 @@ var _ Box = (*PageBreakBox)(nil)
 // ImageBox is a box that contains an image
 type ImageBox struct {
 	I          image.Image
+	Scale      float64
 	M          font.Metrics
 	metricCalc imageBoxOptionMetricCalcFunc
 	fontDrawer *font.Drawer
@@ -701,7 +807,11 @@ var _ Box = (*ImageBox)(nil)
 
 // AdvanceRect width of text
 func (ib *ImageBox) AdvanceRect() fixed.Int26_6 {
-	return fixed.I(ib.I.Bounds().Dx())
+	scale := ib.Scale
+	if scale == 0 {
+		scale = 1
+	}
+	return fixed.I(int(float64(ib.I.Bounds().Dx()) * scale))
 }
 
 // MetricsRect all other font details of text
@@ -771,3 +881,103 @@ func NewImageBox(i image.Image, options ...ImageBoxOption) *ImageBox {
 	ib.CalculateMetrics()
 	return ib
 }
+
+// BackgroundBox is a box that has a background
+type BackgroundBox struct {
+	Box
+	Background image.Image
+	boxBox     bool
+}
+
+// DrawBox renders object
+func (bb *BackgroundBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	bounds := i.Bounds()
+	// Draw background
+	draw.Draw(i, bounds, bb.Background, image.Point{}, draw.Over)
+	// Draw content
+	bb.Box.DrawBox(i, y, dc)
+	if bb.boxBox {
+		DrawBox(i, bounds, dc)
+	}
+}
+
+// turnOnBox draws a box around the box
+func (bb *BackgroundBox) turnOnBox() {
+	bb.boxBox = true
+	// We might want to pass it down?
+	if b, ok := bb.Box.(interface{ turnOnBox() }); ok {
+		b.turnOnBox()
+	}
+}
+
+// EffectType defines when the effect is applied
+type EffectType int
+
+const (
+	EffectPre EffectType = iota
+	EffectPost
+)
+
+// BoxEffect defines a graphical effect applied to a box
+type BoxEffect struct {
+	Func func(Image, Box, *DrawConfig)
+	Type EffectType
+}
+
+// EffectBox wraps a box with effects
+type EffectBox struct {
+	Box
+	Effects []BoxEffect
+	boxBox  bool
+}
+
+// DrawBox renders object with effects
+func (eb *EffectBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	for _, e := range eb.Effects {
+		if e.Type == EffectPre {
+			e.Func(i, eb.Box, dc)
+		}
+	}
+	eb.Box.DrawBox(i, y, dc)
+	for _, e := range eb.Effects {
+		if e.Type == EffectPost {
+			e.Func(i, eb.Box, dc)
+		}
+	}
+	if eb.boxBox {
+		DrawBox(i, i.Bounds(), dc)
+	}
+}
+
+// turnOnBox draws a box around the box
+func (eb *EffectBox) turnOnBox() {
+	eb.boxBox = true
+	// Pass down
+	if b, ok := eb.Box.(interface{ turnOnBox() }); ok {
+		b.turnOnBox()
+	}
+}
+
+// Interface enforcement
+var _ Box = (*EffectBox)(nil)
+
+// AlignedBox wraps a box with alignment information
+type AlignedBox struct {
+	Box
+	Alignment BaselineAlignment
+}
+
+// DrawBox renders object (passes through, logic is in Line)
+func (ab *AlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	ab.Box.DrawBox(i, y, dc)
+}
+
+// turnOnBox draws a box around the box
+func (ab *AlignedBox) turnOnBox() {
+	if b, ok := ab.Box.(interface{ turnOnBox() }); ok {
+		b.turnOnBox()
+	}
+}
+
+// Interface enforcement
+var _ Box = (*AlignedBox)(nil)

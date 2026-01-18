@@ -64,40 +64,13 @@ func NewSimpleWrapper(contents []*Content, grf font.Face, opts ...WrapperOption)
 
 // NewRichWrapper creates a new wrapper. valid args are font.Face, string, and WrapperOption
 func NewRichWrapper(args ...interface{}) *SimpleWrapper {
-	var contents []*Content
-	var currentFont font.Face
-	var defaultFont font.Face
-	var opts []WrapperOption
-	var boxer Boxer
+	contents, fontDrawer, wrapperOptions, boxerOptions, boxer, _ := ProcessRichArgs(args...)
 
-	for _, arg := range args {
-		switch v := arg.(type) {
-		case font.Face:
-			currentFont = v
-			if defaultFont == nil {
-				defaultFont = v
-			}
-		case string:
-			c := NewContent(v)
-			if currentFont != nil {
-				c = NewContent(v, WithFont(currentFont))
-			}
-			contents = append(contents, c)
-		case WrapperOption:
-			opts = append(opts, v)
-		case Boxer:
-			boxer = v
-		}
-	}
-
-	fontDrawer := &font.Drawer{
-		Src:  image.NewUniform(image.Black),
-		Face: defaultFont,
-	}
 	sw := &SimpleWrapper{
-		fontDrawer: fontDrawer,
+		fontDrawer:   fontDrawer,
+		boxerOptions: boxerOptions,
 	}
-	sw.ApplyOptions(opts...)
+	sw.ApplyOptions(wrapperOptions...)
 	if boxer == nil {
 		boxArgs := []interface{}{contents, fontDrawer}
 		for _, opt := range sw.boxerOptions {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"reflect"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
@@ -288,7 +287,9 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 	}
 	a := b.AdvanceRect()
 	switch b.(type) {
-	case *SimpleTextBox:
+	case *LineBreakBox:
+		done = true
+	default:
 		irdx := a.Ceil()
 		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
 		cdx := sf.container.Dx()
@@ -304,10 +305,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 			done = true
 			return done, nil
 		}
-	case *LineBreakBox:
-		done = true
-	default:
-		return true, fmt.Errorf("unknown box at pos %d: %s", sf.boxer.Pos()-i, reflect.TypeOf(b))
 	}
 	l.Push(b, a)
 	return done, nil
