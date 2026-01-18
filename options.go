@@ -1,9 +1,10 @@
 package wordwrap
 
 import (
+	"log"
+
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
-	"log"
 )
 
 /*
@@ -162,6 +163,8 @@ var BoxBox = boxerOptionFunc(func(f interface{}) {
 	switch f := f.(type) {
 	case *SimpleBoxer:
 		f.postBoxOptions = append(f.postBoxOptions, bf)
+	case *RichBoxer:
+		f.postBoxOptions = append(f.postBoxOptions, bf)
 	case Box:
 		bf(f)
 	}
@@ -172,7 +175,6 @@ type ImageBoxOption interface {
 	applyImageBoxOption(box *ImageBox)
 }
 
-//
 type imageBoxOptionMetricCalcFunc func(ib2 *ImageBox) font.Metrics
 
 func (i imageBoxOptionMetricCalcFunc) applyImageBoxOption(box *ImageBox) {

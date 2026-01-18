@@ -3,12 +3,13 @@ package wordwrap
 import (
 	"bytes"
 	_ "embed"
-	"github.com/google/go-cmp/cmp"
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/png"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 var (
@@ -156,7 +157,7 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		},
 		{
 			name: "Multiple fonts",
-			SimpleWrapper: NewWrapper(FontFace16DPI180ForTest(t),
+			SimpleWrapper: NewRichWrapper(FontFace16DPI180ForTest(t),
 				"Testing ",
 				FontFace24DPI180ForTest(t),
 				"this! ",

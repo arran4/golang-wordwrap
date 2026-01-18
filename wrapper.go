@@ -2,8 +2,9 @@ package wordwrap
 
 import (
 	"fmt"
-	"golang.org/x/image/font"
 	"image"
+
+	"golang.org/x/image/font"
 )
 
 // SimpleWrapper quick and dirty wrapper.
@@ -58,6 +59,54 @@ func NewSimpleWrapper(contents []*Content, grf font.Face, opts ...WrapperOption)
 	}
 	sw.ApplyOptions(opts...)
 	sw.boxer = NewSimpleBoxer(contents, fontDrawer, sw.boxerOptions...)
+	return sw
+}
+
+// NewRichWrapper creates a new wrapper. valid args are font.Face, string, and WrapperOption
+func NewRichWrapper(args ...interface{}) *SimpleWrapper {
+	var contents []*Content
+	var currentFont font.Face
+	var defaultFont font.Face
+	var opts []WrapperOption
+	var boxer Boxer
+
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case font.Face:
+			currentFont = v
+			if defaultFont == nil {
+				defaultFont = v
+			}
+		case string:
+			c := NewContent(v)
+			if currentFont != nil {
+				c = NewContent(v, WithFont(currentFont))
+			}
+			contents = append(contents, c)
+		case WrapperOption:
+			opts = append(opts, v)
+		case Boxer:
+			boxer = v
+		}
+	}
+
+	fontDrawer := &font.Drawer{
+		Src:  image.NewUniform(image.Black),
+		Face: defaultFont,
+	}
+	sw := &SimpleWrapper{
+		fontDrawer: fontDrawer,
+	}
+	sw.ApplyOptions(opts...)
+	if boxer == nil {
+		boxArgs := []interface{}{contents, fontDrawer}
+		for _, opt := range sw.boxerOptions {
+			boxArgs = append(boxArgs, opt)
+		}
+		sw.boxer = NewRichBoxer(boxArgs...)
+	} else {
+		sw.boxer = boxer
+	}
 	return sw
 }
 

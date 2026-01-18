@@ -3,10 +3,11 @@ package wordwrap
 import (
 	"bytes"
 	"fmt"
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"reflect"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 // Line refers to a literal line of text
@@ -171,7 +172,7 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
-		var bb Box = b
+		bb := b
 		if config.BoxDrawMap != nil {
 			bb = config.ApplyMap(bb, l.stats.BoxPositionStats(bi))
 		}

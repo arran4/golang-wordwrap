@@ -3,11 +3,12 @@ package wordwrap
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/draw"
 	"unicode"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 // Box is a representation of a non-divisible unit (can be nested)
@@ -88,6 +89,215 @@ func NewSimpleBoxer(contents []*Content, drawer *font.Drawer, options ...BoxerOp
 		option.ApplyBoxConfig(sb)
 	}
 	return sb
+}
+
+// NewRichBoxer creates a new boxer using a variety of arguments to create the contents and options
+// NewRichBoxer creates a new boxer using a variety of arguments to create the contents and options
+func NewRichBoxer(args ...interface{}) *RichBoxer {
+	var contents []*Content
+	var drawer *font.Drawer
+	var options []BoxerOption
+	var currentFont font.Face
+	var defaultFont font.Face
+
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case []*Content:
+			contents = append(contents, v...)
+		case *Content:
+			contents = append(contents, v)
+		case font.Face:
+			currentFont = v
+			if defaultFont == nil {
+				defaultFont = v
+			}
+		case *font.Drawer:
+			drawer = v
+			currentFont = v.Face
+			if defaultFont == nil {
+				defaultFont = v.Face
+			}
+		case string:
+			c := NewContent(v)
+			if currentFont != nil {
+				c = NewContent(v, WithFont(currentFont))
+			}
+			contents = append(contents, c)
+		case BoxerOption:
+			options = append(options, v)
+		}
+	}
+
+	if drawer == nil && defaultFont != nil {
+		drawer = &font.Drawer{
+			Src:  image.NewUniform(image.Black),
+			Face: defaultFont,
+		}
+	}
+
+	sb := &RichBoxer{
+		contents:   contents,
+		n:          0,
+		fontDrawer: drawer,
+		Grabber:    SimpleBoxerGrab,
+	}
+	for _, option := range options {
+		option.ApplyBoxConfig(sb)
+	}
+	return sb
+}
+
+// RichBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
+// the calling Folder that. Putting the elements in the correct Box.
+type RichBoxer struct {
+	postBoxOptions []func(Box)
+	contents       []*Content
+	contentIndex   int
+	n              int
+	fontDrawer     *font.Drawer
+	Grabber        func(text []rune) (int, []rune, int)
+	cacheQueue     []Box
+}
+
+// Ensures that RichBoxer fits model
+var _ Boxer = (*RichBoxer)(nil)
+
+// Pos current parser position.
+func (sb *RichBoxer) Pos() int {
+	pos := 0
+	for i := 0; i < sb.contentIndex; i++ {
+		pos += len([]rune(sb.contents[i].text))
+	}
+	pos += sb.n
+
+	for _, e := range sb.cacheQueue {
+		pos -= e.Len()
+	}
+	return pos
+}
+
+// HasNext unprocessed bytes exist
+func (sb *RichBoxer) HasNext() bool {
+	if len(sb.cacheQueue) > 0 {
+		return true
+	}
+	for i := sb.contentIndex; i < len(sb.contents); i++ {
+		text := []rune(sb.contents[i].text)
+		start := 0
+		if i == sb.contentIndex {
+			start = sb.n
+		}
+		if start < len(text) {
+			return true
+		}
+	}
+	return false
+}
+
+// SetFontDrawer Changes the default font
+func (sb *RichBoxer) SetFontDrawer(face *font.Drawer) {
+	sb.fontDrawer = face
+}
+
+// Back goes back i spaces (ie unreads)
+func (sb *RichBoxer) Back(i int) {
+	sb.n -= i
+	for sb.n < 0 {
+		sb.contentIndex--
+		if sb.contentIndex < 0 {
+			sb.contentIndex = 0
+			sb.n = 0
+			break
+		}
+		sb.n += len([]rune(sb.contents[sb.contentIndex].text))
+	}
+}
+
+// FontDrawer encapsulates default fonts and more
+func (sb *RichBoxer) FontDrawer() *font.Drawer {
+	return sb.fontDrawer
+}
+
+// Push puts a box back on to the cache stack
+func (sb *RichBoxer) Push(box ...Box) {
+	sb.cacheQueue = append(sb.cacheQueue, box...)
+}
+
+// Unshift basically is Push but to the start
+func (sb *RichBoxer) Unshift(box ...Box) {
+	sb.cacheQueue = append(append(make([]Box, 0, len(box)+len(sb.cacheQueue)), box...), sb.cacheQueue...)
+}
+
+func (sb *RichBoxer) Shift() Box {
+	if len(sb.cacheQueue) > 0 {
+		cb := sb.cacheQueue[0]
+		sb.cacheQueue = sb.cacheQueue[1:]
+		return cb
+	}
+	return nil
+}
+
+// Next gets the next word in a Box
+func (sb *RichBoxer) Next() (Box, int, error) {
+	if len(sb.cacheQueue) > 0 {
+		return sb.Shift(), 0, nil
+	}
+	for {
+		if sb.contentIndex >= len(sb.contents) {
+			return nil, 0, nil
+		}
+		currentContent := sb.contents[sb.contentIndex]
+		text := []rune(currentContent.text)
+		if sb.n >= len(text) {
+			sb.contentIndex++
+			sb.n = 0
+			if sb.contentIndex >= len(sb.contents) {
+				return nil, 0, nil
+			}
+			continue
+		}
+		n, rs, rmode := sb.Grabber(text[sb.n:])
+		sb.n += n
+		var b Box
+		drawer := sb.fontDrawer
+		if currentContent.style != nil && currentContent.style.font != nil {
+			drawer = &font.Drawer{
+				Src:  sb.fontDrawer.Src,
+				Face: currentContent.style.font,
+			}
+		}
+		switch rmode {
+		case RNIL:
+			if sb.n >= len(text) {
+				sb.contentIndex++
+				sb.n = 0
+				if sb.contentIndex >= len(sb.contents) {
+					return nil, 0, nil
+				}
+				continue
+			}
+			return nil, n, nil
+		case RSimpleBox, RCRLF:
+			t := string(rs)
+			var err error
+			b, err = NewSimpleTextBox(drawer, t)
+			if err != nil {
+				return nil, 0, err
+			}
+		default:
+			return nil, 0, fmt.Errorf("unknown rmode %d", rmode)
+		}
+		switch rmode {
+		case RCRLF:
+			b = &LineBreakBox{
+				Box: b,
+			}
+		}
+		for _, option := range sb.postBoxOptions {
+			option(b)
+		}
+		return b, n, nil
+	}
 }
 
 // Pos current parser position.
