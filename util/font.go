@@ -29,6 +29,9 @@ func GetFontFace(fontsize float64, dpi float64, gr *truetype.Font) font.Face {
 	})
 }
 
+// OpenFont loads a TrueType font by name.
+// Note: This currently only supports TrueType fonts provided by the gofont packages.
+// Bitmap fonts like basicfont or inconsolata cannot be returned as *truetype.Font.
 func OpenFont(name string) (*truetype.Font, error) {
 	b, err := FontByName(name)
 	if err != nil {
@@ -39,6 +42,28 @@ func OpenFont(name string) (*truetype.Font, error) {
 		return nil, fmt.Errorf("font load error: %w", err)
 	}
 	return gr, nil
+}
+
+// GetFace returns a font.Face for the given font name.
+// This supports both TrueType fonts (scaled to the given size and DPI)
+// and bitmap fonts (which ignore size and DPI).
+func GetFace(name string, fontsize float64, dpi float64) (font.Face, error) {
+	// First check for bitmap fonts
+	switch name {
+	case "basicfont":
+		return basicfont.Face7x13, nil
+	case "inconsolata-bold":
+		return inconsolata.Bold8x16, nil
+	case "inconsolata-regular":
+		return inconsolata.Regular8x16, nil
+	}
+
+	// Try to load as TrueType
+	gr, err := OpenFont(name)
+	if err != nil {
+		return nil, err
+	}
+	return GetFontFace(fontsize, dpi, gr), nil
 }
 
 func FontByName(name string) ([]byte, error) {
