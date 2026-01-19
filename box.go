@@ -535,6 +535,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 // LatinTokenizer is the default tokenizer for latin languages
 var LatinTokenizer = SimpleBoxerGrab
 
+<<<<<<< HEAD
 // StarTokenizer is a demo tokenizer that splits on stars
 func StarTokenizer(text []rune) (int, []rune, int) {
 	n := 0
@@ -574,13 +575,54 @@ func StarTokenizer(text []rune) (int, []rune, int) {
 					return r != '*' && !unicode.IsSpace(r)
 				}
 			}
+=======
+// SimpleBoxerGrab Consumer of characters until change. Could be made to conform to strings.Scanner
+func SimpleBoxerGrab(text []rune) (int, []rune, int) {
+	if len(text) == 0 {
+		return 0, nil, RNIL
+	}
+
+	if !unicode.IsPrint(text[0]) {
+		// Consume a single non-printable character and signal to ignore it.
+		// This prevents infinite loops on non-printable characters.
+		return 1, nil, RNIL
+	}
+
+	r := text[0]
+	if r == '\r' {
+		if len(text) > 1 && text[1] == '\n' {
+			return 2, text[:2], RCRLF // CRLF
+>>>>>>> e562d03 (Refactor: Simplify and optimize SimpleBoxerGrab)
 		}
-		if !mode(r) {
+		return 1, text[:1], RCRLF // CR
+	}
+	if r == '\n' {
+		return 1, text[:1], RCRLF // LF
+	}
+
+	isSpace := IsSpaceButNotCRLF(r)
+
+	n := 0
+	for n < len(text) {
+		r := text[n]
+		if IsCR(r) || IsLF(r) {
+			break
+		}
+		// Also stop at non-printable characters.
+		if !unicode.IsPrint(r) {
+			break
+		}
+		if IsSpaceButNotCRLF(r) != isSpace {
 			break
 		}
 		n++
 	}
-	return n, text[:n], rmode
+
+	if n == 0 { // Should not happen given the checks above, but as a safeguard.
+		return 1, text[:1], RSimpleBox
+	}
+
+	return n, text[:n], RSimpleBox
 }
 
 // Matches objects
