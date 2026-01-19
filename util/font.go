@@ -54,7 +54,7 @@ func GetFace(name string, fontsize float64, dpi float64) (font.Face, error) {
 		return basicfont.Face7x13, nil
 	case "inconsolata-bold":
 		return inconsolata.Bold8x16, nil
-	case "inconsolata-regular":
+	case "inconsolata-regular", "inconsolata":
 		return inconsolata.Regular8x16, nil
 	}
 
@@ -94,21 +94,4 @@ func FontByName(name string) ([]byte, error) {
 		return gosmallcapsitalic.TTF, nil
 	}
 	return nil, errors.New("font not found")
-}
-
-func GetFace(name string, fontsize float64, dpi float64) (font.Face, error) {
-	switch name {
-	case "basicfont":
-		return basicfont.Face7x13, nil
-	case "inconsolata":
-		return inconsolata.Regular8x16, nil
-	case "inconsolata-bold":
-		return inconsolata.Bold8x16, nil
-	}
-
-	ttf, err := OpenFont(name)
-	if err != nil {
-		return nil, err
-	}
-	return GetFontFace(fontsize, dpi, ttf), nil
 }
