@@ -161,12 +161,12 @@ func DrawBox(i draw.Image, s image.Rectangle, dc *DrawConfig) {
 			srci = originalSrc
 		}()
 	}
-	for x := s.Min.X; x < s.Max.X; x++ {
-		i.Set(x, s.Min.Y, srci.At(x, s.Min.Y))
-		i.Set(x, s.Max.Y-1, srci.At(x, s.Max.Y-1))
-	}
-	for y := s.Min.Y; y < s.Max.Y; y++ {
-		i.Set(s.Min.X, y, srci.At(s.Min.X, y))
-		i.Set(s.Max.X-1, y, srci.At(s.Max.X-1, y))
-	}
+	// Top
+	draw.Draw(i, image.Rectangle{Min: s.Min, Max: image.Point{X: s.Max.X, Y: s.Min.Y + 1}}, srci, s.Min, draw.Src)
+	// Bottom
+	draw.Draw(i, image.Rectangle{Min: image.Point{X: s.Min.X, Y: s.Max.Y - 1}, Max: s.Max}, srci, image.Point{X: s.Min.X, Y: s.Max.Y - 1}, draw.Src)
+	// Left
+	draw.Draw(i, image.Rectangle{Min: s.Min, Max: image.Point{X: s.Min.X + 1, Y: s.Max.Y}}, srci, s.Min, draw.Src)
+	// Right
+	draw.Draw(i, image.Rectangle{Min: image.Point{X: s.Max.X - 1, Y: s.Min.Y}, Max: s.Max}, srci, image.Point{X: s.Max.X - 1, Y: s.Min.Y}, draw.Src)
 }
