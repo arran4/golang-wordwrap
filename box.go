@@ -592,43 +592,50 @@ const (
 
 // SimpleBoxerGrab Consumer of characters until change. Could be made to conform to strings.Scanner
 func SimpleBoxerGrab(text []rune) (int, []rune, int) {
-	n := 0
-	rmode := RNIL
-	var mode func(rune) bool
-	for _, r := range text {
-		if mode == nil {
-			if IsCR(r) {
-				mode = Once(func(r rune) bool {
-					if IsLF(r) {
-						rmode = RCRLF
-						return true
-					}
-					return false
-				})
-				n++
-				continue
-			} else if IsLF(r) {
-				rmode = RCRLF
-				n++
-				break
-			} else if !unicode.IsPrint(r) {
-				continue
-			} else if IsSpaceButNotCRLF(r) {
-				mode = IsSpaceButNotCRLF
-				rmode = RSimpleBox
-			} else {
-				rmode = RSimpleBox
-				mode = func(r rune) bool {
-					return !unicode.IsSpace(r)
-				}
-			}
+	if len(text) == 0 {
+		return 0, nil, RNIL
+	}
+
+	if !unicode.IsPrint(text[0]) {
+		// Consume a single non-printable character and signal to ignore it.
+		// This prevents infinite loops on non-printable characters.
+		return 1, nil, RNIL
+	}
+
+	r := text[0]
+	if r == '\r' {
+		if len(text) > 1 && text[1] == '\n' {
+			return 2, text[:2], RCRLF // CRLF
 		}
-		if !mode(r) {
+		return 1, text[:1], RCRLF // CR
+	}
+	if r == '\n' {
+		return 1, text[:1], RCRLF // LF
+	}
+
+	isSpace := IsSpaceButNotCRLF(r)
+
+	n := 0
+	for n < len(text) {
+		r := text[n]
+		if IsCR(r) || IsLF(r) {
+			break
+		}
+		// Also stop at non-printable characters.
+		if !unicode.IsPrint(r) {
+			break
+		}
+		if IsSpaceButNotCRLF(r) != isSpace {
 			break
 		}
 		n++
 	}
-	return n, text[:n], rmode
+
+	if n == 0 { // Should not happen given the checks above, but as a safeguard.
+		return 1, text[:1], RSimpleBox
+	}
+
+	return n, text[:n], RSimpleBox
 }
 
 // IsSpaceButNotCRLF Because spaces are different to CR and LF for word wrapping
