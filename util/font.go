@@ -3,9 +3,23 @@ package util
 import (
 	"errors"
 	"fmt"
+
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/gobolditalic"
+	"golang.org/x/image/font/gofont/goitalic"
+	"golang.org/x/image/font/gofont/gomedium"
+	"golang.org/x/image/font/gofont/gomediumitalic"
+	"golang.org/x/image/font/gofont/gomono"
+	"golang.org/x/image/font/gofont/gomonobold"
+	"golang.org/x/image/font/gofont/gomonobolditalic"
+	"golang.org/x/image/font/gofont/gomonoitalic"
 	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/gofont/gosmallcaps"
+	"golang.org/x/image/font/gofont/gosmallcapsitalic"
+	"golang.org/x/image/font/inconsolata"
 )
 
 func GetFontFace(fontsize float64, dpi float64, gr *truetype.Font) font.Face {
@@ -31,6 +45,45 @@ func FontByName(name string) ([]byte, error) {
 	switch name {
 	case "goregular":
 		return goregular.TTF, nil
+	case "gobold":
+		return gobold.TTF, nil
+	case "gobolditalic":
+		return gobolditalic.TTF, nil
+	case "goitalic":
+		return goitalic.TTF, nil
+	case "gomedium":
+		return gomedium.TTF, nil
+	case "gomediumitalic":
+		return gomediumitalic.TTF, nil
+	case "gomono":
+		return gomono.TTF, nil
+	case "gomonobold":
+		return gomonobold.TTF, nil
+	case "gomonobolditalic":
+		return gomonobolditalic.TTF, nil
+	case "gomonoitalic":
+		return gomonoitalic.TTF, nil
+	case "gosmallcaps":
+		return gosmallcaps.TTF, nil
+	case "gosmallcapsitalic":
+		return gosmallcapsitalic.TTF, nil
 	}
 	return nil, errors.New("font not found")
+}
+
+func GetFace(name string, fontsize float64, dpi float64) (font.Face, error) {
+	switch name {
+	case "basicfont":
+		return basicfont.Face7x13, nil
+	case "inconsolata":
+		return inconsolata.Regular8x16, nil
+	case "inconsolata-bold":
+		return inconsolata.Bold8x16, nil
+	}
+
+	ttf, err := OpenFont(name)
+	if err != nil {
+		return nil, err
+	}
+	return GetFontFace(fontsize, dpi, ttf), nil
 }
