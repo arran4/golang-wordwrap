@@ -85,15 +85,14 @@ func TestProcessRichArgs(t *testing.T) {
 			},
 			wantContents: 1,
 			check: func(t *testing.T, c []*Content, d *font.Drawer) {
-				if d != nil {
-					// We expect logic to NOT set drawer if nil provided,
-					// OR set default black drawer if none exists?
-					// Implementation of ProcessRichArgs logic:
-					// if state.drawer == nil && state.defaultFont != nil { set default }
-					// if *font.Drawer arg is passed as nil:
-					// My fix: if v != nil { ... }
-					// So it ignores nil drawer.
-				}
+				// We expect logic to NOT set drawer if nil provided,
+				// OR set default black drawer if none exists?
+				// Implementation of ProcessRichArgs logic:
+				// if state.drawer == nil && state.defaultFont != nil { set default }
+				// if *font.Drawer arg is passed as nil:
+				// My fix: if v != nil { ... }
+				// So it ignores nil drawer.
+
 			},
 		},
 	}

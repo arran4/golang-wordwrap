@@ -19,7 +19,11 @@ func saveDocImage(name string, img image.Image) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	if err := png.Encode(f, img); err != nil {
 		log.Fatal(err)
 	}
@@ -136,7 +140,9 @@ func ExampleSimpleWrapper_TextToSpecs_flexible() {
 	if result.PageBackground != nil {
 		draw.Draw(img, img.Bounds(), &image.Uniform{result.PageBackground}, image.Point{}, draw.Src)
 	}
-	wrapper.RenderLines(img, result.Lines, result.ContentStart)
+	if err := wrapper.RenderLines(img, result.Lines, result.ContentStart); err != nil {
+		log.Fatal(err)
+	}
 
 	saveDocImage("flexible_example.png", img)
 

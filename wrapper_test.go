@@ -177,9 +177,8 @@ func TestSimpleWrapper_TextToRect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var actualPages [][]string
 			for {
-				if !tt.SimpleWrapper.HasNext() {
-					// Check consistency if desired, but mostly just exercising the method
-				}
+				_ = tt.SimpleWrapper.HasNext()
+				// Check consistency if desired, but mostly just exercising the method
 				got, _, err := tt.SimpleWrapper.TextToRect(tt.r)
 				if (err != nil) != tt.wantErr {
 					t.Errorf("TextToRect() error = %v, wantErr %v", err, tt.wantErr)
