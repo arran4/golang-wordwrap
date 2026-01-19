@@ -589,12 +589,6 @@ func SimpleBoxerGrab(text []rune) (int, []rune, int) {
 		return 0, nil, RNIL
 	}
 
-	if !unicode.IsPrint(text[0]) {
-		// Consume a single non-printable character and signal to ignore it.
-		// This prevents infinite loops on non-printable characters.
-		return 1, nil, RNIL
-	}
-
 	r := text[0]
 	if r == '\r' {
 		if len(text) > 1 && text[1] == '\n' {
@@ -604,6 +598,12 @@ func SimpleBoxerGrab(text []rune) (int, []rune, int) {
 	}
 	if r == '\n' {
 		return 1, text[:1], RCRLF // LF
+	}
+
+	if !unicode.IsPrint(text[0]) {
+		// Consume a single non-printable character and signal to ignore it.
+		// This prevents infinite loops on non-printable characters.
+		return 1, nil, RNIL
 	}
 
 	isSpace := IsSpaceButNotCRLF(r)
