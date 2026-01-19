@@ -329,6 +329,35 @@ func ExampleSimpleWrapper_TextToSpecs_a4() {
 
 ![](doc/a4_example.png)
 
+### A4 Document Layout (Full Page)
+
+Create a standard A4 document layout with both fixed width and height. Note that `A4Width` and `A4Height` require the target DPI (e.g., 96) to calculate the correct pixel dimensions.
+
+```go
+func ExampleSimpleWrapper_TextToSpecs_a4_full() {
+	// ... load font ...
+	text := "This is an example of a full A4 document layout..."
+
+	wrapper := wordwrap.NewRichWrapper(font, text)
+
+	// Layout Specs: A4 Width & Height (96 DPI), 20px Padding, White Background
+	result, err := wrapper.TextToSpecs(
+		wordwrap.Width(wordwrap.A4Width(96)),
+		wordwrap.Height(wordwrap.A4Height(96)),
+		wordwrap.Padding(20, color.Black),
+		wordwrap.PageBackground(color.White),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// ... Render same as included in the examples ...
+	// saveDocImage("a4_full_example.png", img)
+}
+```
+
+![](doc/a4_full_example.png)
+
 ### Flexible Constraints (Min/Max/Auto)
 
 Use `Min` and `Max` to create flexible layouts. For example, `Min(A4, Unbounded)` effectively means "Auto width, but capped at A4 width" (logic: `min(A4, natural)`).
