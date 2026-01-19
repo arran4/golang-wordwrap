@@ -50,21 +50,16 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 // NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
 // assumes black text
 func NewSimpleWrapper(contents []*Content, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
-	fontDrawer := &font.Drawer{
-		Src:  image.NewUniform(image.Black),
-		Face: grf,
+	args := []interface{}{contents, grf}
+	for _, opt := range opts {
+		args = append(args, opt)
 	}
-	sw := &SimpleWrapper{
-		fontDrawer: fontDrawer,
-	}
-	sw.ApplyOptions(opts...)
-	sw.boxer = NewSimpleBoxer(contents, fontDrawer, sw.boxerOptions...)
-	return sw
+	return NewRichWrapper(args...)
 }
 
 // NewRichWrapper creates a new wrapper. valid args are font.Face, string, and WrapperOption
 func NewRichWrapper(args ...interface{}) *SimpleWrapper {
-	contents, fontDrawer, wrapperOptions, boxerOptions, boxer, _ := ProcessRichArgs(args...)
+	contents, fontDrawer, wrapperOptions, boxerOptions, boxer, tokenizer := ProcessRichArgs(args...)
 
 	sw := &SimpleWrapper{
 		fontDrawer:   fontDrawer,
@@ -72,11 +67,11 @@ func NewRichWrapper(args ...interface{}) *SimpleWrapper {
 	}
 	sw.ApplyOptions(wrapperOptions...)
 	if boxer == nil {
-		boxArgs := []interface{}{contents, fontDrawer}
-		for _, opt := range sw.boxerOptions {
-			boxArgs = append(boxArgs, opt)
+		sb := NewSimpleBoxer(contents, fontDrawer, sw.boxerOptions...)
+		if tokenizer != nil {
+			sb.Tokenizer = tokenizer
 		}
-		sw.boxer = NewRichBoxer(boxArgs...)
+		sw.boxer = sb
 	} else {
 		sw.boxer = boxer
 	}

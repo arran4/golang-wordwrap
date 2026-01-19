@@ -163,8 +163,7 @@ var BoxBox = boxerOptionFunc(func(f interface{}) {
 	switch f := f.(type) {
 	case *SimpleBoxer:
 		f.postBoxOptions = append(f.postBoxOptions, bf)
-	case *RichBoxer:
-		f.postBoxOptions = append(f.postBoxOptions, bf)
+
 	case Box:
 		bf(f)
 	}
