@@ -45,7 +45,7 @@ func main() {
 	SampleType1(400, 85, 16, 180, "goregular", "testdata/sample5.txt", "images/sample05.png", wordwrap.YOverflow(wordwrap.DescentOverflow))
 	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample06.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage)))
 	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample07.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricAboveTheLine), wordwrap.BoxBox))
-	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample08.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricBelowTheLine), wordwrap.BoxBox))
+	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample08.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer)), wordwrap.BoxBox))
 	SampleType1(200, 100, 16, 75, "goregular", "testdata/sample1.txt", "images/sample09.png", wordwrap.NewPageBreakBox(wordwrap.NewImageBox(chevronImage, wordwrap.ImageBoxMetricCenter(fontDrawer)), wordwrap.BoxBox))
 	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample10.png", wordwrap.HorizontalCenterLines)
 	SampleType1(200, 120, 16, 75, "goregular", "testdata/sample1.txt", "images/sample11.png", wordwrap.RightLines)
