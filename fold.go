@@ -1,9 +1,9 @@
 package wordwrap
 
 import (
-	"bytes"
 	"fmt"
 	"image"
+	"strings"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
@@ -145,11 +145,11 @@ func (l *SimpleLine) YValue() int {
 
 // TextValue extracts the text value of the line
 func (l *SimpleLine) TextValue() string {
-	b := bytes.NewBuffer(nil)
+	var sb strings.Builder
 	for _, e := range l.boxes {
-		b.WriteString(e.TextValue())
+		sb.WriteString(e.TextValue())
 	}
-	return b.String()
+	return sb.String()
 }
 
 // turnOnBox turns on drawing a box around the used portion of the line
