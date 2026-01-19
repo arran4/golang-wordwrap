@@ -2,13 +2,9 @@ package wordwrap
 
 import (
 	"fmt"
-<<<<<<< HEAD
 	"image"
 	"strings"
 
-=======
-	"strings"
->>>>>>> d9912f1 (Optimize SimpleLine.TextValue by using strings.Builder)
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 )
