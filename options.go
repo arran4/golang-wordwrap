@@ -193,7 +193,8 @@ var ImageBoxMetricAboveTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox)
 var ImageBoxMetricBelowTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox) font.Metrics {
 	return font.Metrics{
 		Height:  fixed.I(ib.I.Bounds().Dy()),
-		Descent: fixed.I(ib.I.Bounds().Dy()),
+		Ascent:  fixed.I(ib.I.Bounds().Dy()) / 2,
+		Descent: fixed.I(ib.I.Bounds().Dy()) - fixed.I(ib.I.Bounds().Dy())/2,
 	}
 }
 
