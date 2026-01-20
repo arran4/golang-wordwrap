@@ -79,10 +79,7 @@ func TestAdvancedRichFeatures(t *testing.T) {
 				Args: []interface{}{
 					Color(red),
 					"Red",
-					Reset(), // This should reset only within the linear processing of the group?
-					// Wait, Reset clears s.currentStyle.
-					// Linear processing modifies s.currentStyle.
-					// Groups push/pop s.currentStyle.
+					Reset(), // Reset style state within the group scope.
 					"PlainInGroup",
 				},
 			},
@@ -188,8 +185,7 @@ func TestAdvancedRichFeatures(t *testing.T) {
 			t.Error("Expected lines")
 		}
 
-		// Note: Spacemap integration (interactive elements/ID) is tested in consuming applications
-		// (e.g. question-vol) as wordwrap does not depend on spacemap directly.
+		// Spacemap integration is verified in consumers.
 
 		// Check that line length includes margin.
 		// "Child" width + 10 margin.
@@ -224,13 +220,7 @@ func TestAdvancedRichFeatures(t *testing.T) {
 			if child.text != "BlueChild" {
 				t.Errorf("Child text mismatch")
 			}
-			// Child SHOULD have style with blue color from parent inheritance?
-			// Logic: "But they SHOULD inherit Font/Color."
-			// subS.currentStyle starts as clone of s.currentStyle.
-			// s.currentStyle has Color(Blue).
-			// subS.currentStyle DOES have Color(Blue).
-			// subS.currentStyle.Decorators cleared.
-			// So Child gets Blue Color.
+			// Child inherits Font/Color from the container.
 
 			// Verify
 			u, ok := child.style.FontDrawerSrc.(*image.Uniform)

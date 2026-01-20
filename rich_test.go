@@ -38,7 +38,7 @@ func TestProcessRichArgs(t *testing.T) {
 				// Style should have font
 				// Content structure is private, but we can check if it processed without panic
 				// and if drawer face was updated in state (returned as 2nd arg)
-				// Wait, ProcessRichArgs returns `state.drawer`.
+				// Verify if drawer face was correctly updated.
 				if d == nil {
 					t.Error("Drawer is nil")
 				}
@@ -87,11 +87,7 @@ func TestProcessRichArgs(t *testing.T) {
 			check: func(t *testing.T, c []*Content, d *font.Drawer) {
 				// We expect logic to NOT set drawer if nil provided,
 				// OR set default black drawer if none exists?
-				// Implementation of ProcessRichArgs logic:
-				// if state.drawer == nil && state.defaultFont != nil { set default }
-				// if *font.Drawer arg is passed as nil:
-				// My fix: if v != nil { ... }
-				// So it ignores nil drawer.
+				// Verify that nil font drawer arguments are handled gracefully.
 
 			},
 		},

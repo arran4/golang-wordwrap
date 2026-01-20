@@ -11,47 +11,47 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// Box is a representation of a non-divisible unit (can be nested)
+// Box represents a non-divisible unit of content (e.g., a word or image), which can be nested.
 type Box interface {
-	// AdvanceRect width of text
+	// AdvanceRect returns the width of the content.
 	AdvanceRect() fixed.Int26_6
-	// MetricsRect all other font details of text
+	// MetricsRect returns the font metrics of the content.
 	MetricsRect() font.Metrics
-	// Whitespace if this is a white space or not
+	// Whitespace returns true if the content is whitespace.
 	Whitespace() bool
-	// DrawBox renders object
+	// DrawBox renders the content into the given image at the specified Y offset.
 	DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig)
-	// FontDrawer font used
+	// FontDrawer returns the font face used for this box.
 	FontDrawer() *font.Drawer
-	// Len the length of the buffer represented by the box
+	// Len returns the length of the content (e.g. rune count).
 	Len() int
-	// TextValue extracts the text value
+	// TextValue returns the text string content of the box.
 	TextValue() string
-	// MinSize returns the minimum size of the box
+	// MinSize returns the minimum required size for the box (width, height).
 	MinSize() (fixed.Int26_6, fixed.Int26_6)
-	// MaxSize returns the maximum size of the box
+	// MaxSize returns the maximum allowed size for the box (width, height).
 	MaxSize() (fixed.Int26_6, fixed.Int26_6)
 }
 
-// Boxer is the tokenizer that splits the line into it's literal components
+// Boxer splits a line of text (or other content) into indivisible Box components.
 type Boxer interface {
-	// Next gets the next word in a Box
+	// Next returns the next Box.
 	Next() (Box, int, error)
-	// SetFontDrawer Changes the default font
+	// SetFontDrawer sets the default font for the boxer.
 	SetFontDrawer(face *font.Drawer)
-	// FontDrawer encapsulates default fonts and more
+	// FontDrawer returns the default font drawer.
 	FontDrawer() *font.Drawer
-	// Back goes back i spaces (ie unreads)
+	// Back unreads the last i atoms/boxes.
 	Back(i int)
-	// HasNext if there are any unprocessed runes
+	// HasNext returns true if there is more content to process.
 	HasNext() bool
-	// Push puts a box back on to the cache stack
+	// Push returns boxes to the front of the queue (stack behavior).
 	Push(box ...Box)
-	// Pos text pos
+	// Pos returns the current cursor position in the input.
 	Pos() int
-	// Unshift basically is Push but to the start
+	// Unshift adds boxes to the beginning of the internal buffer.
 	Unshift(b ...Box)
-	// Shift removes the first element but unlike Next doesn't attempt to generate a new one if there is nothing
+	// Shift removes and returns the first Box from the internal buffer.
 	Shift() Box
 	// Reset restarts the tokenization
 	Reset()
@@ -290,24 +290,7 @@ func (rb *RowBox) FontDrawer() *font.Drawer {
 func (rb *RowBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	var x fixed.Int26_6
 	for _, b := range rb.Boxes {
-		// Draw each box.
-		// Layout assumes horizontal.
-		// i is the full image space for text.
-		// We probably need to offset the drawing position.
-		// BUT `DrawBox` usually relies on `i` being the target,
-		// and uses `y` as baseline.
-		// SimpleTextBox uses `sb.drawer.Dot` which is absolute.
-		// If we use `DrawBox` on child, it might reset `Dot` or expect `i` to be shifted?
-		// `SimpleTextBox.DrawBox` uses `b.Min.X` if available?
-		// No, `SimpleTextBox.DrawBox` implementation:
-		// `sb.drawer.Dot = fixed.P(b.Min.X + xoffset, b.Min.Y + y)`
-		// Wait. `SimpleBoxer` boxes usually don't have absolute positions until Layout runs.
-		// But in `DrawLine`, it calls `DrawBox` and passes `x` offset implicitly?
-		// No, `DrawLine` loop:
-		// `b.DrawBox(img.SubImage(r), base, dc)`.
-		// It passes a `SubImage` that corresponds to the Box's allocated area.
-		// So `RowBox` should split `i` into subimages for each child?
-		// YES.
+		// Draw each box, using a sub-image for proper relative positioning.
 
 		w := b.AdvanceRect()
 		adv := w.Ceil()

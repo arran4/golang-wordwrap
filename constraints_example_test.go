@@ -107,14 +107,7 @@ func ExampleSimpleWrapper_TextToSpecs_a4() {
 }
 
 func ExampleSimpleWrapper_TextToSpecs_flexible() {
-	// Example of "Min(300, Unbounded)"
-	// This creates a box that is at least 300px wide, but grows if content is wider (unlikely for text wrapping,
-	// but useful if 'Unbounded' is default and you want a minimum).
-	// Actually, "Min(A4, Unbounded)" means "Min(A4, Natural)".
-	// If Natural < A4, use Natural? NO. Min(A, B) uses smaller.
-	// Natural is usually small for short text. A4 is large.
-	// So Min(A4, Natural) = Natural.
-	// This implements "Auto width but max A4".
+	// Layout using a flexible width constraint: at most A4 width, but shrinking to content (Natural) width if smaller.
 
 	gr, err := util.OpenFont("goregular")
 	if err != nil {

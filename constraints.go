@@ -75,8 +75,6 @@ func PageBackground(c color.Color) PageBackgroundOption {
 	return PageBackgroundOption{Color: c}
 }
 
-// Helper Functions
-
 // Auto returns the content size (identity). Same as Unbounded in this context.
 func Auto() SizeFunction { return func(n int) int { return n } }
 
@@ -153,7 +151,7 @@ func (sw *SimpleWrapper) TextToSpecs(opts ...SpecOption) (*LayoutResult, error) 
 	}
 
 	sw.boxer.Reset()
-	// ... (layout logic, unchanged)
+
 	inf := 1000000
 	lines, _, err := sw.TextToRect(image.Rect(0, 0, inf, inf))
 	if err != nil {

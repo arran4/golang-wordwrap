@@ -27,11 +27,8 @@ func NewDecorationBox(b Box, padding, margin fixed.Rectangle26_6, bg image.Image
 	}
 }
 
-// ... methods ...
-
-// DrawBox renders object
+// DrawBox renders the box with decorations.
 func (db *DecorationBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
-	// ... (logic) ...
 	b := i.Bounds()
 
 	// Margin is outside the background.
@@ -64,7 +61,7 @@ func (db *DecorationBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	}
 
 	if innerRect.Empty() {
-		// No space for inner box?
+		// No space for inner box.
 		return
 	}
 

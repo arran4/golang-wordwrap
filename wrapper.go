@@ -7,7 +7,7 @@ import (
 	"golang.org/x/image/font"
 )
 
-// SimpleWrapper quick and dirty wrapper.
+// SimpleWrapper provides basic text wrapping functionality.
 type SimpleWrapper struct {
 	folderOptions           []FolderOption
 	boxerOptions            []BoxerOption

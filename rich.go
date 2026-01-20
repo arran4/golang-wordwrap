@@ -30,8 +30,6 @@ type BackgroundImage struct {
 	Fixed       *bool
 }
 
-// ... (existing code)
-
 // BgImage returns a Group with BackgroundImage applied, or the Option if no args
 func BgImage(i image.Image, args ...interface{}) interface{} {
 	if len(args) == 0 {
@@ -66,36 +64,30 @@ func BgImage(i image.Image, args ...interface{}) interface{} {
 	return bi
 }
 
-// ... (existing code, helper functions)
-
-// ImageContent defines an inline image
+// ImageContent represents an inline image.
 type ImageContent struct {
 	Image image.Image
 	Scale float64 // 0 or 1 = original size
 }
 
-// Helper functions (optional but requested)
-
-// FontImage defines the text pattern
+// FontImage represents an image used as a text fill pattern.
 type FontImage struct {
 	image.Image
 }
 
-// Group defines a group of arguments
+// Group collects arguments to be processed together.
 type Group struct {
 	Args []interface{}
 }
 
-// ContainerGroup defines a group that becomes a container box
+// ContainerGroup represents a group rendered as a separate container box.
 type ContainerGroup struct {
 	Options []interface{}
 	Args    []interface{}
 }
 
-// Align defines an alignment
+// BaselineAlignmentOption wraps a BaselineAlignment.
 type BaselineAlignmentOption BaselineAlignment
-
-// Helper functions (optional but requested)
 
 // TextColor returns a Group with FontColor applied, or the Option if no args
 func TextColor(c color.Color, args ...interface{}) interface{} {
@@ -146,7 +138,7 @@ func FixedBackground(args ...interface{}) interface{} {
 	return Group{Args: append(append(pre, FixedBackgroundOption(true)), post...)}
 }
 
-// Container returns a ContainerGroup
+// Container returns a ContainerGroup.
 func Container(args ...interface{}) interface{} {
 	return ContainerGroup{Args: args}
 }
@@ -158,12 +150,12 @@ type FixedBackgroundOption bool
 type MinSizeOption fixed.Point26_6
 type ResetOption struct{}
 
-// Reset returns a ResetOption to plain style
+// Reset returns a ResetOption to revert to plain style.
 func Reset() interface{} {
 	return ResetOption{}
 }
 
-// Alignment returns a BaselineAlignmentOption
+// Alignment returns a BaselineAlignmentOption.
 func Alignment(a BaselineAlignment) BaselineAlignmentOption { return BaselineAlignmentOption(a) }
 
 // Highlight returns a Group with BackgroundColor applied (Alias for BgColor)
@@ -322,9 +314,7 @@ func (s *rcState) process(args []interface{}) {
 			s.currentDecoratorTypes = prevDecoratorTypes
 
 		case ContainerGroup:
-			// logic: isolate contents
-			// Children should NOT inherit decorators (Margin/Padding/Bg) from the container's scope.
-			// But they SHOULD inherit Font/Color.
+			// Isolate content: Children inherit Font/Color but not decorators (Margin/Padding/Bg) from the container.
 
 			// Clone state for children
 			subS := &rcState{
@@ -341,8 +331,7 @@ func (s *rcState) process(args []interface{}) {
 			if subS.currentStyle != nil {
 				subS.currentStyle.Decorators = nil
 				subS.currentDecoratorTypes = nil
-				// Keep Effects? Probably yes.
-				// Keep Alignment? Maybe.
+				// Keep Effects and Alignment (inherited).
 			}
 
 			// Process children
@@ -458,8 +447,7 @@ func (s *rcState) process(args []interface{}) {
 				bgPos = BgPositioningPassThrough
 			}
 			d := func(b Box) Box {
-				// We pass nil bg here because BgImage logic handles background separately now?
-				// User wants separate layers.
+				// Pass nil background since BgImage handles it separately.
 				return NewDecorationBox(b, fixed.Rectangle26_6{}, margin, nil, bgPos) // fixed irrelevant if bg nil
 			}
 			s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
@@ -484,54 +472,7 @@ func (s *rcState) process(args []interface{}) {
 			if s.currentStyle == nil {
 				s.currentStyle = &Style{}
 			}
-			// Border should use BorderImage if set?
-			// BorderOption defines rect. BorderGroup sets logic.
-			// But user might use Border(rect, BgImage(borderImg)).
-			// That would append BgDecorator then BorderDecorator.
-			// We want BorderDecorator to use the image?
-			// Currently BgImage adds BgDecorator.
-			// If Border(rect) wraps arg, and arg is BgImage.
-			// Arg adds Bg Decorator.
-			// Then BorderOption adds Border Decorator.
-			// SimpleBoxer Reverse: Border(Bg(Box)).
-			// Bg(Box) is a box with BorderImage (via standard Bg logic).
-			// Border(Box) adds border space (padding/margin?).
-			// If Border means "Frame", we usually want the image ON the border.
-			// NewDecorationBox supports this if we pass Margin=BorderWidth and Bg=BorderImage.
-			// But here we split them.
-			// Bg(Box) -> DecorationBox(bg=BorderImage).
-			// Border(Box) -> DecorationBox(Margin=BorderWidth).
-			// Result: DecorationBox(Margin) ( DecorationBox(Bg) ( Box ) ).
-			// Visual: Outer Margin (Transp). Then Inner Box (Bg).
-			// But we want Bg to be IN the Margin?
-			// `DecorationBox` draws Bg covering Margin+Padding.
-			// If we split, `MarginDecorator` draws nothing. `BgDecorator` draws inside.
-			// So `Bg` is INSIDE `Margin`.
-			// This matches "Border" concept?
-			// No, `Margin` is external spacing.
-			// `Border` is usually visualized frame.
-			// If user wants `Border(5px, Bg(Wood))`.
-			// `Bg(Wood)` creates WoodBox.
-			// `Border(5px)` creates SpaceBox wrapping WoodBox.
-			// Result: `[ Space [ Wood [ Text ] ] ]`.
-			// Visual: Transparent Border around Wood Box.
-			// THIS IS WRONG. User wants Wood Frame.
-			// So `BgImage` MUST apply to the `BorderDecorator`?
-			// OR we must COMBINE them.
-			// Since `BgImage` helper appends Decorator.
-			// We can't easily combine later without inspecting list.
-
-			// Alternative: `BgImage` checks if `inBorder`?
-			// If `inBorder`, it sets `s.currentStyle.BorderImage` state instead of adding decorator.
-			// Then `BorderOption` checks `BorderImage` state and creates combined decorator.
-			// `Border(rect, Bg(img))`.
-			// `Bg` runs (inside BorderGroup). Sets `s.currentStyle.BorderImage = img`.
-			// `BorderOption` runs (last). Checks `BorderImage`. Creates `DecorationBox(Margin=rect, Bg=BorderImage)`.
-			// This works!
-			// So `Border` helper must use `BorderGroup` logic correctly.
-			// `Border` helper returns `BorderGroup`.
-			// `process(BorderGroup)` sets `inBorder=true`.
-			// `BgImage` helper MUST NOT add decorator if `inBorder`.
+			// Combine BorderOption (Margin) with potential BorderImage.
 
 			margin := fixed.Rectangle26_6(v)
 			bg := s.currentStyle.BorderImage

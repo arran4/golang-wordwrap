@@ -8,7 +8,7 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// BaselineAlignment alignment of content within the line
+// BaselineAlignment defines how content is aligned relative to the baseline.
 type BaselineAlignment int
 
 const (
@@ -18,7 +18,7 @@ const (
 	AlignBottom
 )
 
-// Content is a struct that holds the text and style of a piece of content.
+// Content represents a piece of text or an image with associated styling.
 type Content struct {
 	text       string
 	style      *Style
@@ -29,14 +29,14 @@ type Content struct {
 	children   []*Content
 }
 
-// Style is a struct that holds the font and font size of a piece of content.
+// Style defines the visual properties of content.
 type Style struct {
 	font            font.Face
 	FontDrawerSrc   image.Image
 	BackgroundColor image.Image // can be used for colour or image
 	Padding         fixed.Rectangle26_6
 	Margin          fixed.Rectangle26_6
-	// ...
+
 	Alignment       BaselineAlignment
 	Effects         []BoxEffect
 	FixedBackground bool
