@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -58,11 +58,12 @@ type Scenario struct {
 	DPI     float64
 }
 
-func main() {
+// PageLimits is a subcommand `wordwrap pagelimits`
+func PageLimits() error {
 	// Setup dependencies
 	gr, err := util.OpenFont("goregular")
 	if err != nil {
-		log.Fatalf("Failed to open font: %v", err)
+		return fmt.Errorf("failed to open font: %w", err)
 	}
 	fontRegular := util.GetFontFace(24, 96, gr)
 
@@ -129,6 +130,7 @@ func main() {
 			log.Printf("Error in scenario %s: %v", s.Name, err)
 		}
 	}
+	return nil
 }
 
 func runScenario(s Scenario, grf font.Face) error {
@@ -220,6 +222,7 @@ func runScenario(s Scenario, grf font.Face) error {
 	}
 
 	// Save
+	_ = os.MkdirAll(filepath.Join("cmd", "pagelimits"), 0755) // Original code saved here
 	filename := filepath.Join("cmd", "pagelimits", s.Name+".png")
 	f, err := os.Create(filename)
 	if err != nil {

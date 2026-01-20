@@ -1,0 +1,24 @@
+package templates
+
+import (
+	"embed"
+	"sync"
+	"text/template"
+)
+
+// CLITemplatesFS contains all CLI usage templates.
+//
+//go:embed *.txt
+var CLITemplatesFS embed.FS
+
+var (
+	compiledTemplates *template.Template
+	templatesOnce     sync.Once
+)
+
+func GetTemplates() *template.Template {
+	templatesOnce.Do(func() {
+		compiledTemplates = template.Must(template.New("").ParseFS(CLITemplatesFS, "*.txt"))
+	})
+	return compiledTemplates
+}

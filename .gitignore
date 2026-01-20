@@ -1,7 +1,5 @@
 /.idea
 *.iml
 /*.png
-/cmd/dogoal/dogoal
-/cmd/generatesample/generatesample
-/cmd/simplewraptoimage/simplewraptoimage
+/wordwrap
 coverage.out

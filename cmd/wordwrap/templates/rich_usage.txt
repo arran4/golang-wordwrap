@@ -1,0 +1,10 @@
+Usage: wordwrap rich [flags...]
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --width int    Doc width 0 = auto/A4 (default: 0)
+    --height int   Doc height 0 = auto/unbounded (default: 0)
+    --out string   Output filename (default: rich_output.png)
