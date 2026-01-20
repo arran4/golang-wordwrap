@@ -370,7 +370,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 				}
 				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
 					bg := currentContent.style.BackgroundColor
-					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.FixedBackground)
+					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 				}
 			}
 			for i := len(currentContent.decorators) - 1; i >= 0; i-- {
@@ -420,7 +420,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 				}
 				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
 					bg := currentContent.style.BackgroundColor
-					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.FixedBackground)
+					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 				}
 				for i := len(currentContent.decorators) - 1; i >= 0; i-- {
 					b = currentContent.decorators[i](b)
@@ -489,8 +489,9 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 		if currentContent.style != nil {
 			if currentContent.style.BackgroundColor != nil {
 				b = &BackgroundBox{
-					Box:        b,
-					Background: currentContent.style.BackgroundColor,
+					Box:           b,
+					Background:    currentContent.style.BackgroundColor,
+					BgPositioning: currentContent.style.BgPositioning,
 				}
 			}
 			if len(currentContent.style.Effects) > 0 {
@@ -507,7 +508,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 			}
 			if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
 				bg := currentContent.style.BackgroundColor
-				b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.FixedBackground)
+				b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 			}
 			for i := len(currentContent.decorators) - 1; i >= 0; i-- {
 				b = currentContent.decorators[i](b)
@@ -1050,8 +1051,9 @@ func NewImageBox(i image.Image, options ...ImageBoxOption) *ImageBox {
 // BackgroundBox is a box that has a background
 type BackgroundBox struct {
 	Box
-	Background image.Image
-	boxBox     bool
+	Background    image.Image
+	BgPositioning BackgroundPositioning
+	boxBox        bool
 }
 
 // DrawBox renders object
@@ -1066,8 +1068,24 @@ func (b *BackgroundBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 
 func (bb *BackgroundBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	bounds := i.Bounds()
+	srcPoint := image.Point{}
+	switch bb.BgPositioning {
+	case BgPositioningPassThrough:
+		srcPoint = bounds.Min
+	case BgPositioningZeroed:
+		srcPoint = image.Point{}
+	case BgPositioningSection5Zeroed:
+		// Since BackgroundBox usually wraps the content directly with no padding/margin difference in this context,
+		// Section5Zeroed (content relative) is equivalent to Zeroed (box relative) if no margin/pad.
+		// Or effectively 0,0 relative to Bounds.Min?
+		// Section5Zeroed means "Match section 5 (content) starting position with coordinates 0, 0".
+		// Here, content starts at bounds.Min. so 0 = bounds.Min - bounds.Min + srcPoint.
+		// srcPoint = 0.
+		srcPoint = image.Point{}
+	}
+
 	// Draw background
-	draw.Draw(i, bounds, bb.Background, image.Point{}, draw.Over)
+	draw.Draw(i, bounds, bb.Background, srcPoint, draw.Over)
 	// Draw content
 	bb.Box.DrawBox(i, y, dc)
 	if bb.boxBox {

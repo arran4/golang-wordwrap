@@ -9,6 +9,15 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// BackgroundPositioning defines how the background is positioned
+type BackgroundPositioning int
+
+const (
+	BgPositioningSection5Zeroed BackgroundPositioning = iota // Aligned to content (inner) box 0,0
+	BgPositioningZeroed                                      // Aligned to box 0,0 (Frame)
+	BgPositioningPassThrough                                 // Absolute Coordinates (matches dst)
+)
+
 // FontColor defines the text color
 type FontColor struct {
 	color.Color
@@ -17,7 +26,47 @@ type FontColor struct {
 // BackgroundImage defines the background
 type BackgroundImage struct {
 	image.Image
+	Positioning *BackgroundPositioning
+	Fixed       *bool
 }
+
+// ... (existing code)
+
+// BgImage returns a Group with BackgroundImage applied, or the Option if no args
+func BgImage(i image.Image, args ...interface{}) interface{} {
+	if len(args) == 0 {
+		return BackgroundImage{Image: i}
+	}
+	var post []interface{}
+
+	bi := BackgroundImage{Image: i}
+
+	for _, a := range args {
+		switch v := a.(type) {
+		case BackgroundPositioning:
+			bp := v
+			bi.Positioning = &bp
+		case BackgroundPositioningOption:
+			bp := BackgroundPositioning(v)
+			bi.Positioning = &bp
+		case FixedBackgroundOption:
+			b := bool(v)
+			bi.Fixed = &b
+		default:
+			post = append(post, a)
+		}
+	}
+
+	if len(post) > 0 {
+		// Scoped usage (container)
+		return Group{Args: append([]interface{}{bi}, post...)}
+	}
+
+	// Modifier usage (unscoped)
+	return bi
+}
+
+// ... (existing code, helper functions)
 
 // ImageContent defines an inline image
 type ImageContent struct {
@@ -67,17 +116,39 @@ func TextImage(i image.Image, args ...interface{}) interface{} {
 // BgColor returns a Group with BackgroundColor applied, or the Option if no args
 func BgColor(c color.Color, args ...interface{}) interface{} {
 	if len(args) == 0 {
-		return BackgroundImage{image.NewUniform(c)}
+		return BackgroundImage{Image: image.NewUniform(c)}
 	}
-	return Group{Args: append([]interface{}{BackgroundImage{image.NewUniform(c)}}, args...)}
+	return Group{Args: append([]interface{}{BackgroundImage{Image: image.NewUniform(c)}}, args...)}
 }
 
-// BgImage returns a Group with BackgroundImage applied, or the Option if no args
-func BgImage(i image.Image, args ...interface{}) interface{} {
+type BackgroundPositioningOption BackgroundPositioning
+
+// BgPosition returns a BackgroundPositioningOption
+func BgPosition(p BackgroundPositioning) interface{} {
+	return BackgroundPositioningOption(p)
+}
+
+// FixedBackground returns a Group with FixedBackground applied, or the Option if no args
+func FixedBackground(args ...interface{}) interface{} {
 	if len(args) == 0 {
-		return BackgroundImage{i}
+		return FixedBackgroundOption(true)
 	}
-	return Group{Args: append([]interface{}{BackgroundImage{i}}, args...)}
+	var pre []interface{}
+	var post []interface{}
+	for _, a := range args {
+		switch a.(type) {
+		case BackgroundPositioning, BackgroundPositioningOption, FixedBackgroundOption:
+			pre = append(pre, a)
+		default:
+			post = append(post, a)
+		}
+	}
+	return Group{Args: append(append(pre, FixedBackgroundOption(true)), post...)}
+}
+
+// Container returns a ContainerGroup
+func Container(args ...interface{}) interface{} {
+	return ContainerGroup{Args: args}
 }
 
 type MarginOption fixed.Rectangle26_6
@@ -122,17 +193,6 @@ func Underline(c color.Color) BoxEffect {
 		Func: func(i Image, b Box, dc *DrawConfig) {
 			r := i.Bounds()
 			m := b.MetricsRect()
-			// Baseline is approximately m.Ascent relative to top?
-			// DrawBox passed 'y' which is line baseline.
-			// But here we are drawing on 'i' (subimage).
-			// If box is aligned to baseline, 'y' in DrawBox was likely used to offset dot.
-			// But 'i' bounds are the box's allocated rect.
-			// Text is drawn relative to 'i.Min.Y + y'.
-			// But we don't have 'y'.
-			// However simple text box draws at 'b.Min.Y + y'.
-			// Does simple text box shift 'i'? No.
-			// The content is drawn.
-			// The logical baseline of the text inside the box is at m.Ascent from the top of the box.
 			base := r.Min.Y + m.Ascent.Ceil() + 2 // +2 for offset?
 			lineR := image.Rect(r.Min.X, base, r.Max.X, base+1)
 			draw.Draw(i, lineR, &image.Uniform{c}, image.Point{}, draw.Over)
@@ -173,11 +233,12 @@ type rcState struct {
 	boxer          Boxer
 	tokenizer      Tokenizer
 
-	currentFont  font.Face
-	defaultFont  font.Face
-	currentStyle *Style
-	currentID    interface{}
-	inBorder     bool
+	currentFont           font.Face
+	defaultFont           font.Face
+	currentStyle          *Style
+	currentID             interface{}
+	inBorder              bool
+	currentDecoratorTypes []string
 }
 
 func (s *rcState) cloneStyle() *Style {
@@ -240,19 +301,6 @@ func Color(c color.Color, args ...interface{}) interface{} {
 	return TextColor(c, args...)
 }
 
-// FixedBackground returns a Group with FixedBackground applied, or the Option if no args
-func FixedBackground(args ...interface{}) interface{} {
-	if len(args) == 0 {
-		return FixedBackgroundOption(true)
-	}
-	return Group{Args: append([]interface{}{FixedBackgroundOption(true)}, args...)}
-}
-
-// Container returns a ContainerGroup
-func Container(args ...interface{}) interface{} {
-	return ContainerGroup{Args: args}
-}
-
 func (s *rcState) process(args []interface{}) {
 	for _, arg := range args {
 		switch v := arg.(type) {
@@ -261,14 +309,18 @@ func (s *rcState) process(args []interface{}) {
 			prevFont := s.currentFont
 			prevID := s.currentID
 			prevInBorder := s.inBorder
+			prevDecoratorTypes := s.currentDecoratorTypes
 
 			s.currentStyle = s.cloneStyle()
+			s.currentDecoratorTypes = append([]string(nil), s.currentDecoratorTypes...)
 			s.process(v.Args)
 
 			s.currentStyle = prevStyle
 			s.currentFont = prevFont
 			s.currentID = prevID
 			s.inBorder = prevInBorder
+			s.currentDecoratorTypes = prevDecoratorTypes
+
 		case ContainerGroup:
 			// logic: isolate contents
 			// Children should NOT inherit decorators (Margin/Padding/Bg) from the container's scope.
@@ -276,17 +328,19 @@ func (s *rcState) process(args []interface{}) {
 
 			// Clone state for children
 			subS := &rcState{
-				currentStyle: s.cloneStyle(),
-				currentFont:  s.currentFont,
-				defaultFont:  s.defaultFont,
-				drawer:       s.drawer,
-				boxerOptions: s.boxerOptions,
-				tokenizer:    s.tokenizer,
+				currentStyle:          s.cloneStyle(),
+				currentFont:           s.currentFont,
+				defaultFont:           s.defaultFont,
+				drawer:                s.drawer,
+				boxerOptions:          s.boxerOptions,
+				tokenizer:             s.tokenizer,
+				currentDecoratorTypes: append([]string(nil), s.currentDecoratorTypes...),
 			}
 
 			// Clear decorators for children so they don't get double-wrapped
 			if subS.currentStyle != nil {
 				subS.currentStyle.Decorators = nil
+				subS.currentDecoratorTypes = nil
 				// Keep Effects? Probably yes.
 				// Keep Alignment? Maybe.
 			}
@@ -319,8 +373,10 @@ func (s *rcState) process(args []interface{}) {
 			prevFont := s.currentFont
 			prevID := s.currentID
 			prevInBorder := s.inBorder
+			prevDecoratorTypes := s.currentDecoratorTypes
 
 			s.currentStyle = s.cloneStyle()
+			s.currentDecoratorTypes = append([]string(nil), s.currentDecoratorTypes...)
 			s.inBorder = true
 			s.process(v.Args)
 
@@ -328,6 +384,7 @@ func (s *rcState) process(args []interface{}) {
 			s.currentFont = prevFont
 			s.currentID = prevID
 			s.inBorder = prevInBorder
+			s.currentDecoratorTypes = prevDecoratorTypes
 		case []*Content:
 			s.contents = append(s.contents, v...)
 		case *Content:
@@ -354,36 +411,74 @@ func (s *rcState) process(args []interface{}) {
 			}
 			// Use Decorator Logic
 			bg := v.Image
+
+			// Resolve Fixed
 			fixedBg := s.currentStyle.FixedBackground
+			if v.Fixed != nil {
+				fixedBg = *v.Fixed
+			}
+
+			// Resolve Positioning
+			bgPos := s.currentStyle.BgPositioning
+			if v.Positioning != nil {
+				bgPos = *v.Positioning
+			}
+
+			// Map legacy FixedBackground to Positioning if not set (or if explicitly requested via Fixed=true)
+			// Logic: If legacy Fixed is true, and Pos is default (0), assume PassThrough.
+			if fixedBg && bgPos == BgPositioningSection5Zeroed {
+				bgPos = BgPositioningPassThrough
+			}
+
 			d := func(b Box) Box {
 				// DecorationBox supports Background.
-				return NewDecorationBox(b, fixed.Rectangle26_6{}, fixed.Rectangle26_6{}, bg, fixedBg)
+				return NewDecorationBox(b, fixed.Rectangle26_6{}, fixed.Rectangle26_6{}, bg, bgPos)
 			}
-			s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
+			idx := -1
+			for i, t := range s.currentDecoratorTypes {
+				if t == "Background" {
+					idx = i
+					break
+				}
+			}
+			if idx != -1 {
+				s.currentStyle.Decorators[idx] = d
+			} else {
+				s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
+				s.currentDecoratorTypes = append(s.currentDecoratorTypes, "Background")
+			}
 
 		case MarginOption:
 			if s.currentStyle == nil {
 				s.currentStyle = &Style{}
 			}
 			margin := fixed.Rectangle26_6(v)
-			fixedBg := s.currentStyle.FixedBackground
+			bgPos := s.currentStyle.BgPositioning
+			if s.currentStyle.FixedBackground && bgPos == BgPositioningSection5Zeroed {
+				bgPos = BgPositioningPassThrough
+			}
 			d := func(b Box) Box {
 				// We pass nil bg here because BgImage logic handles background separately now?
 				// User wants separate layers.
-				return NewDecorationBox(b, fixed.Rectangle26_6{}, margin, nil, fixedBg) // fixed irrelevant if bg nil
+				return NewDecorationBox(b, fixed.Rectangle26_6{}, margin, nil, bgPos) // fixed irrelevant if bg nil
 			}
 			s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
+			s.currentDecoratorTypes = append(s.currentDecoratorTypes, "Margin")
 
 		case PaddingOption:
 			if s.currentStyle == nil {
 				s.currentStyle = &Style{}
 			}
 			padding := fixed.Rectangle26_6(v)
-			fixedBg := s.currentStyle.FixedBackground
+			bgPos := s.currentStyle.BgPositioning
+			if s.currentStyle.FixedBackground && bgPos == BgPositioningSection5Zeroed {
+				bgPos = BgPositioningPassThrough
+			}
 			d := func(b Box) Box {
-				return NewDecorationBox(b, padding, fixed.Rectangle26_6{}, nil, fixedBg)
+				return NewDecorationBox(b, padding, fixed.Rectangle26_6{}, nil, bgPos)
 			}
 			s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
+			s.currentDecoratorTypes = append(s.currentDecoratorTypes, "Padding")
 
 		case BorderOption:
 			if s.currentStyle == nil {
@@ -440,12 +535,38 @@ func (s *rcState) process(args []interface{}) {
 
 			margin := fixed.Rectangle26_6(v)
 			bg := s.currentStyle.BorderImage
-			fixedBg := s.currentStyle.FixedBackground
+			bgPos := s.currentStyle.BgPositioning
+			if s.currentStyle.FixedBackground && bgPos == BgPositioningSection5Zeroed {
+				bgPos = BgPositioningPassThrough
+			}
 			d := func(b Box) Box {
-				return NewDecorationBox(b, fixed.Rectangle26_6{}, margin, bg, fixedBg)
+				return NewDecorationBox(b, fixed.Rectangle26_6{}, margin, bg, bgPos)
 			}
 			s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
+			s.currentDecoratorTypes = append(s.currentDecoratorTypes, "Border")
 
+		case BackgroundPositioningOption:
+			if s.currentStyle == nil {
+				s.currentStyle = &Style{}
+			}
+			s.currentStyle.BgPositioning = BackgroundPositioning(v)
+			// Sync legacy
+			if BackgroundPositioning(v) == BgPositioningPassThrough {
+				s.currentStyle.FixedBackground = true
+			} else {
+				s.currentStyle.FixedBackground = false
+			}
+		case BackgroundPositioning:
+			if s.currentStyle == nil {
+				s.currentStyle = &Style{}
+			}
+			s.currentStyle.BgPositioning = v
+			// Sync legacy
+			if v == BgPositioningPassThrough {
+				s.currentStyle.FixedBackground = true
+			} else {
+				s.currentStyle.FixedBackground = false
+			}
 		case FixedBackgroundOption:
 			if s.currentStyle == nil {
 				s.currentStyle = &Style{}
@@ -461,8 +582,10 @@ func (s *rcState) process(args []interface{}) {
 				return &MinSizeBox{Box: b, MinSizeVal: minSize}
 			}
 			s.currentStyle.Decorators = append(s.currentStyle.Decorators, d)
+			s.currentDecoratorTypes = append(s.currentDecoratorTypes, "MinSize")
 		case ResetOption:
 			s.currentStyle = &Style{}
+			s.currentDecoratorTypes = nil
 			s.currentFont = s.defaultFont
 			s.currentID = nil
 			s.inBorder = false

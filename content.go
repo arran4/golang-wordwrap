@@ -36,9 +36,11 @@ type Style struct {
 	BackgroundColor image.Image // can be used for colour or image
 	Padding         fixed.Rectangle26_6
 	Margin          fixed.Rectangle26_6
+	// ...
 	Alignment       BaselineAlignment
 	Effects         []BoxEffect
 	FixedBackground bool
+	BgPositioning   BackgroundPositioning
 	Border          fixed.Rectangle26_6
 	BorderImage     image.Image
 	Decorators      []func(Box) Box
