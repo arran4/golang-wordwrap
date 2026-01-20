@@ -13,7 +13,6 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 )
@@ -67,8 +66,13 @@ func SampleType1(width, height int, fontsize, dpi float64, fontname, textsource,
 	if err != nil {
 		log.Panicf("Text fetch error: %s", err)
 	}
-	if err := wordwrap.SimpleWrapTextToImage(text, i, grf, opts...); err != nil {
-		log.Panicf("Text wrap and draw error: %s", err)
+	sw := wordwrap.NewSimpleWrapper([]*wordwrap.Content{wordwrap.NewContent(text)}, grf, opts...)
+	lines, _, err := sw.TextToRect(i.Bounds())
+	if err != nil {
+		log.Panicf("Text wrap error: %s", err)
+	}
+	if err := sw.RenderLines(i, lines, i.Bounds().Min); err != nil {
+		log.Panicf("Text draw error: %s", err)
 	}
 	if err := SaveFile(i, outfilename); err != nil {
 		log.Panicf("Error with saving file: %s", err)
@@ -96,7 +100,7 @@ func GetText(fn string) (string, error) {
 		}
 		return string(b), nil
 	}
-	b, err := ioutil.ReadFile(fn)
+	b, err := os.ReadFile(fn)
 	if err != nil {
 		return "", fmt.Errorf("reading file %s: %w", fn, err)
 	}

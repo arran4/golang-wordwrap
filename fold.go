@@ -2,11 +2,11 @@ package wordwrap
 
 import (
 	"fmt"
+	"image"
 	"strings"
+
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
-	"image"
-	"reflect"
 )
 
 // Line refers to a literal line of text
@@ -171,7 +171,7 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
-		var bb Box = b
+		bb := b
 		if config.BoxDrawMap != nil {
 			bb = config.ApplyMap(bb, l.stats.BoxPositionStats(bi))
 		}
@@ -179,6 +179,9 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 			continue
 		}
 		bb.DrawBox(subImage, l.yoffset, config)
+		if config.BoxRecorder != nil {
+			config.BoxRecorder(bb, r.Min, r.Max, l.stats.BoxPositionStats(bi))
+		}
 		r.Min.X = r.Max.X
 	}
 	if l.boxLine {
@@ -287,24 +290,28 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 	}
 	a := b.AdvanceRect()
 	switch b.(type) {
-	case *SimpleTextBox:
-		irdx := a.Ceil()
-		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
-		cdx := sf.container.Dx()
-		if irdx+szdx >= cdx {
+	case *LineBreakBox:
+		done = true
+	default:
+		// Check total width (Fixed Int26_6 addition then Ceil) against Container width (Int)
+		// irdx (Integers) is not precise enough for strict accumulation
+		currentWidthFixed := l.size.Max.X - l.size.Min.X
+		newTotalWidthFixed := currentWidthFixed + a
+		if newTotalWidthFixed.Ceil() > sf.container.Dx() {
 			if b.Whitespace() {
 				b = &LineBreakBox{
 					Box: b,
 				}
 				l.boxes = append(l.boxes, b)
+			} else if len(l.boxes) == 0 {
+				// If line is empty, we must add the box even if it overflows to prevent infinite loop/dropping.
+				// We do nothing here, falling through to l.Push(b, a) works.
 			} else {
 				sf.boxer.Push(b)
+				done = true
+				return done, nil
 			}
-			done = true
-			return done, nil
 		}
-	case *LineBreakBox:
-		done = true
 	case *ImageBox:
 		irdx := a.Ceil()
 		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
@@ -314,8 +321,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 			done = true
 			return done, nil
 		}
-	default:
-		return true, fmt.Errorf("unknown box at pos %d: %s", sf.boxer.Pos()-i, reflect.TypeOf(b))
 	}
 	l.Push(b, a)
 	return done, nil

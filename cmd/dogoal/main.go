@@ -38,7 +38,8 @@ func main() {
 	grf := util.GetFontFace(16, 75, gr)
 	text := "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus placerat fermentum quam aliquam lobortis."
 	target := image.Rect(350, 44, 592, 209)
-	sw, lines, _, err := wordwrap.SimpleWrapTextToRect(text, target, grf)
+	sw := wordwrap.NewSimpleWrapper([]*wordwrap.Content{wordwrap.NewContent(text)}, grf)
+	lines, _, err := sw.TextToRect(target)
 	if err != nil {
 		log.Panicf("Text wrap error: %s", err)
 	}
