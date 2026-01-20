@@ -305,6 +305,15 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		}
 	case *LineBreakBox:
 		done = true
+	case *ImageBox:
+		irdx := a.Ceil()
+		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
+		cdx := sf.container.Dx()
+		if irdx+szdx >= cdx {
+			sf.boxer.Push(b)
+			done = true
+			return done, nil
+		}
 	default:
 		return true, fmt.Errorf("unknown box at pos %d: %s", sf.boxer.Pos()-i, reflect.TypeOf(b))
 	}
