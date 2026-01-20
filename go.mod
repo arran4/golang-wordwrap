@@ -10,8 +10,3 @@ require (
 )
 
 require github.com/google/go-cmp v0.5.7
-
-require (
-	github.com/arran4/go-pattern v0.0.6 // indirect
-	golang.org/x/text v0.33.0 // indirect
-)
