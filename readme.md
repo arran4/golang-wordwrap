@@ -219,31 +219,43 @@ Block is the entire block of text, while the line is just each line individually
 
 ## CLI app
 
-For demo purposes there is a CLI app in `cmd/simplewraptoimage`
+The library provides a unified CLI application `wordwrap` to demonstrate various features.
 
+### Installation
+
+```bash
+go install ./cmd/wordwrap
 ```
-  -boxbox
-    	Box the box
-  -boxline
-    	Box the line
-  -dpi float
-    	Doc dpi (default 180)
-  -font string
-    	Text font (default "goregular")
-  -height int
-    	Doc height (default 600)
-  -out string
-    	file to write to, in some cases this is ignored (default "out.png")
-  -size float
-    	font size (default 16)
-  -text string
-    	File in, or - for std input (default "-")
-  -width int
-    	Doc width (default 400)
+
+### Usage
+
+```bash
+wordwrap <subcommand> [flags]
+```
+
+#### Subcommands
+
+*   **`simple`**: Renders basic text wrapping to an image. (Formerly `simplewraptoimage`)
+    *   Flags: `--width`, `--height`, `--dpi`, `--font`, `--size`, `--text`, `--out`, `--boxline`, `--boxbox`
+*   **`rich`**: Demonstrates rich text capabilities (colors, fonts, effects). (Formerly `richwraptoimage`)
+    *   Flags: `--width`, `--height`, `--out`
+*   **`sample`**: Generates a set of sample images in the `images/` directory. (Formerly `generatesample`)
+*   **`dogoal`**: Generates the specific goal image example. (Formerly `dogoal`)
+*   **`pagelimits`**: Demonstrates page constraint logic (A4, Fixed, Auto). (Formerly `pagelimits`)
+*   **`texttoimage`**: Demonstrates the `TextToSpecs` API for various layouts. (Formerly `texttoimage`)
+
+#### Example
+
+```bash
+# Render simple text
+echo "Hello World" | wordwrap simple --out hello.png
+
+# Generate all samples
+wordwrap sample
 ```
 
 Only font that is supported is "goregular" as this is only a demo. Happy to accept PRs to expand the `util` package to 
-make it more general. (Or to include more cli.)
+make it more general.
 
 The contents of the `images` directory are outputs from this using the test data from the folder `testdata`
 
