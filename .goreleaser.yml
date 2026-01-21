@@ -1,9 +1,9 @@
 project_name: golang-wordwrap
 builds:
   -
-    id: "simplewraptoimage"
-    binary: "simplewraptoimage"
-    dir: cmd/simplewraptoimage
+    id: "wordwrap"
+    binary: "wordwrap"
+    dir: cmd/wordwrap
     env:
       - CGO_ENABLED=0
     goos:

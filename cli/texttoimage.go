@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -13,10 +13,11 @@ import (
 	"github.com/arran4/golang-wordwrap/util"
 )
 
-func main() {
+// TextToImage is a subcommand `wordwrap texttoimage`
+func TextToImage() error {
 	gr, err := util.OpenFont("goregular")
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to open font: %w", err)
 	}
 	fontRegular := util.GetFontFace(24, 96, gr)
 	fontLarge := util.GetFontFace(48, 96, gr)
@@ -170,4 +171,5 @@ func main() {
 		}
 		fmt.Printf("Saved %s.png (%dx%d)\n", tc.Name, img.Bounds().Dx(), img.Bounds().Dy())
 	}
+	return nil
 }

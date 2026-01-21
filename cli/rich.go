@@ -1,7 +1,6 @@
-package main
+package cli
 
 import (
-	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -17,27 +16,26 @@ import (
 	"golang.org/x/image/font/gofont/goitalic"
 )
 
-var (
-	width  = flag.Int("width", 0, "Doc width (0 = auto/A4)")
-	height = flag.Int("height", 0, "Doc height (0 = auto/unbounded)")
-	out    = flag.String("out", "rich_output.png", "Output filename")
-)
-
 const A4Width = 794 // 210mm at 96 DPI
 
-func main() {
-	flag.Parse()
-
+// RichWrapToImage is a subcommand `wordwrap rich`
+//
+// Flags:
+//
+//	width:  --width  (default: 0) Doc width (0 = auto/A4)
+//	height: --height (default: 0) Doc height (0 = auto/unbounded)
+//	out:    --out    (default: "rich_output.png") Output filename
+func RichWrapToImage(width int, height int, out string) error {
 	// 2. Load Fonts (Using goregular via util)
 	gr, err := util.OpenFont("goregular")
 	if err != nil {
-		log.Fatalf("Failed to open font: %v", err)
+		return fmt.Errorf("failed to open font: %w", err)
 	}
 
 	// Load Italic Font
 	gi, err := truetype.Parse(goitalic.TTF)
 	if err != nil {
-		log.Fatalf("Failed to parse italic font: %v", err)
+		return fmt.Errorf("failed to parse italic font: %w", err)
 	}
 
 	// Define variants
@@ -114,15 +112,15 @@ func main() {
 	}
 
 	// Calculate Dimensions
-	targetWidth := *width
-	targetHeight := *height
+	targetWidth := width
+	targetHeight := height
 
 	if targetWidth <= 0 {
 		// Pass 1: Calculate natural width
 		w := createWrapper()
 		lines, _, err := w.TextToRect(image.Rect(0, 0, 100000, 100000))
 		if err != nil {
-			log.Fatalf("Auto-sizing Pass 1 error: %v", err)
+			return fmt.Errorf("auto-sizing Pass 1 error: %w", err)
 		}
 		maxLineWidth := 0
 		for _, l := range lines {
@@ -151,7 +149,7 @@ func main() {
 
 	lines, p, err := finalWrapper.TextToRect(image.Rect(0, 0, targetWidth, layoutHeight))
 	if err != nil {
-		log.Fatalf("Layout error: %v", err)
+		return fmt.Errorf("layout error: %w", err)
 	}
 
 	if targetHeight <= 0 {
@@ -163,13 +161,13 @@ func main() {
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
 
 	if err := finalWrapper.RenderLines(img, lines, img.Bounds().Min); err != nil {
-		log.Fatalf("Render error: %v", err)
+		return fmt.Errorf("render error: %w", err)
 	}
 
 	// 6. Save
-	f, err := os.Create(*out)
+	f, err := os.Create(out)
 	if err != nil {
-		log.Fatalf("File creation error: %v", err)
+		return fmt.Errorf("file creation error: %w", err)
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -177,10 +175,11 @@ func main() {
 		}
 	}()
 	if err := png.Encode(f, img); err != nil {
-		log.Fatalf("Encoding error: %v", err)
+		return fmt.Errorf("encoding error: %w", err)
 	}
 
-	fmt.Printf("Rich text image generated at: %s (%dx%d)\n", *out, targetWidth, targetHeight)
+	fmt.Printf("Rich text image generated at: %s (%dx%d)\n", out, targetWidth, targetHeight)
+	return nil
 }
 
 func CheckerPattern(c1, c2 color.Color, size int) image.Image {
