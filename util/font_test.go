@@ -38,22 +38,38 @@ func TestFontByName(t *testing.T) {
 }
 
 func TestGetFace(t *testing.T) {
-	tests := []string{
-		"goregular",
-		"basicfont",
-		"inconsolata",
-		"inconsolata-bold",
-		"gomono",
+	tests := []struct {
+		name string
+	}{
+		{"basicfont"},
+		{"inconsolata-bold"},
+		{"inconsolata-regular"},
+		{"inconsolata"},
+		{"goregular"},
+		{"gobold"},
+		{"gobolditalic"},
+		{"goitalic"},
+		{"gomedium"},
+		{"gomediumitalic"},
+		{"gomono"},
+		{"gomonobold"},
+		{"gomonobolditalic"},
+		{"gomonoitalic"},
+		{"gosmallcaps"},
+		{"gosmallcapsitalic"},
 	}
 
-	for _, name := range tests {
-		face, err := GetFace(name, 12, 72)
-		if err != nil {
-			t.Errorf("GetFace(%q) returned error: %v", name, err)
-		}
-		if face == nil {
-			t.Errorf("GetFace(%q) returned nil face", name)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			face, err := GetFace(tt.name, 12, 72)
+			if err != nil {
+				t.Errorf("GetFace(%q) error = %v", tt.name, err)
+				return
+			}
+			if face == nil {
+				t.Errorf("GetFace(%q) returned nil face", tt.name)
+			}
+		})
 	}
 
 	// Test invalid font

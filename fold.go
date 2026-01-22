@@ -1,9 +1,9 @@
 package wordwrap
 
 import (
-	"bytes"
 	"fmt"
 	"image"
+	"strings"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
@@ -145,11 +145,11 @@ func (l *SimpleLine) YValue() int {
 
 // TextValue extracts the text value of the line
 func (l *SimpleLine) TextValue() string {
-	b := bytes.NewBuffer(nil)
+	var sb strings.Builder
 	for _, e := range l.boxes {
-		b.WriteString(e.TextValue())
+		sb.WriteString(e.TextValue())
 	}
-	return b.String()
+	return sb.String()
 }
 
 // turnOnBox turns on drawing a box around the used portion of the line
@@ -171,7 +171,7 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 		fi += b.AdvanceRect()
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
-		var bb Box = b
+		bb := b
 		if config.BoxDrawMap != nil {
 			bb = config.ApplyMap(bb, l.stats.BoxPositionStats(bi))
 		}
@@ -179,6 +179,9 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 			continue
 		}
 		bb.DrawBox(subImage, l.yoffset, config)
+		if config.BoxRecorder != nil {
+			config.BoxRecorder(bb, r.Min, r.Max, l.stats.BoxPositionStats(bi))
+		}
 		r.Min.X = r.Max.X
 	}
 	if l.boxLine {
@@ -286,22 +289,35 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		sf.lastFontDrawer = fontDrawer
 	}
 	a := b.AdvanceRect()
-	switch b := b.(type) {
+	switch b.(type) {
 	case *LineBreakBox:
 		done = true
 	default:
-		irdx := a.Ceil()
-		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
-		cdx := sf.container.Dx()
-		if irdx+szdx >= cdx {
+		// Check total width (Fixed Int26_6 addition then Ceil) against Container width (Int)
+		// irdx (Integers) is not precise enough for strict accumulation
+		currentWidthFixed := l.size.Max.X - l.size.Min.X
+		newTotalWidthFixed := currentWidthFixed + a
+		if newTotalWidthFixed.Ceil() > sf.container.Dx() {
 			if b.Whitespace() {
 				b = &LineBreakBox{
 					Box: b,
 				}
 				l.boxes = append(l.boxes, b)
+			} else if len(l.boxes) == 0 {
+				// If line is empty, we must add the box even if it overflows to prevent infinite loop/dropping.
+				// We do nothing here, falling through to l.Push(b, a) works.
 			} else {
 				sf.boxer.Push(b)
+				done = true
+				return done, nil
 			}
+		}
+	case *ImageBox:
+		irdx := a.Ceil()
+		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
+		cdx := sf.container.Dx()
+		if irdx+szdx >= cdx {
+			sf.boxer.Push(b)
 			done = true
 			return done, nil
 		}

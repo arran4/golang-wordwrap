@@ -219,34 +219,322 @@ Block is the entire block of text, while the line is just each line individually
 
 ## CLI app
 
-For demo purposes there is a CLI app in `cmd/simplewraptoimage`
+The library provides a unified CLI application `wordwrap` to demonstrate various features.
 
+### Installation
+
+```bash
+go install ./cmd/wordwrap
 ```
-  -boxbox
-    	Box the box
-  -boxline
-    	Box the line
-  -dpi float
-    	Doc dpi (default 180)
-  -font string
-    	Text font (default "goregular")
-  -height int
-    	Doc height (default 600)
-  -out string
-    	file to write to, in some cases this is ignored (default "out.png")
-  -size float
-    	font size (default 16)
-  -text string
-    	File in, or - for std input (default "-")
-  -width int
-    	Doc width (default 400)
+
+### Usage
+
+```bash
+wordwrap <subcommand> [flags]
+```
+
+#### Subcommands
+
+*   **`simple`**: Renders basic text wrapping to an image. (Formerly `simplewraptoimage`)
+    *   Flags: `--width`, `--height`, `--dpi`, `--font`, `--size`, `--text`, `--out`, `--boxline`, `--boxbox`
+*   **`rich`**: Demonstrates rich text capabilities (colors, fonts, effects). (Formerly `richwraptoimage`)
+    *   Flags: `--width`, `--height`, `--out`
+*   **`sample`**: Generates a set of sample images in the `images/` directory. (Formerly `generatesample`)
+*   **`dogoal`**: Generates the specific goal image example. (Formerly `dogoal`)
+*   **`pagelimits`**: Demonstrates page constraint logic (A4, Fixed, Auto). (Formerly `pagelimits`)
+*   **`texttoimage`**: Demonstrates the `TextToSpecs` API for various layouts. (Formerly `texttoimage`)
+
+#### Example
+
+```bash
+# Render simple text
+echo "Hello World" | wordwrap simple --out hello.png
+
+# Generate all samples
+wordwrap sample
 ```
 
 Only font that is supported is "goregular" as this is only a demo. Happy to accept PRs to expand the `util` package to 
-make it more general. (Or to include more cli.)
+make it more general.
 
 The contents of the `images` directory are outputs from this using the test data from the folder `testdata`
 
+# Advanced Layout System
+
+The library now supports a flexible, 2-pass (or 3-pass) layout system via the `TextToSpecs` method on `SimpleWrapper`. This allows for complex constraints like "A4 Width", "Minimum Width but Unbounded Height", or "Auto-sizing with a Max Width".
+
+## Core Concepts
+
+*   **TextToSpecs**: The main entry point. It calculates the layout without rendering, returning a `LayoutResult`.
+*   **SpecOption**: Functional options to define constraints (`Width`, `Height`, `Padding`, `PageBackground`).
+*   **SizeFunction**: Functions that determine size based on content measurements (`Fixed`, `Auto`/`Unbounded`, `Min`, `Max`, `A4Width`, etc).
+
+## Examples
+
+### Simple Fixed Width
+
+Constrain the text to a fixed width of 200px.
+
+```go
+func ExampleSimpleWrapper_TextToSpecs_simple() {
+	// Standard Wrapper Args
+	args := []interface{}{
+		font,
+		"Simple Text wrapping example.",
+	}
+	
+	// Create Wrapper
+	wrapper := wordwrap.NewRichWrapper(args...)
+	
+	// Layout with Constraint: Fixed Width 200px
+	result, err := wrapper.TextToSpecs(wordwrap.Width(wordwrap.Fixed(200)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Render
+	img := image.NewRGBA(image.Rect(0, 0, result.PageSize.X, result.PageSize.Y))
+	if err := wrapper.RenderLines(img, result.Lines, result.ContentStart); err != nil {
+		log.Fatal(err)
+	}
+	
+	saveDocImage("simple_example.png", img)
+}
+```
+
+![](doc/simple_example.png)
+
+### A4 Document Layout
+
+Create a standard A4 document layout (at 96 DPI) with padding and a white background.
+
+```go
+func ExampleSimpleWrapper_TextToSpecs_a4() {
+	// ... load font ...
+	text := "This is an example of an A4 document layout..."
+
+	wrapper := wordwrap.NewRichWrapper(font, text)
+
+	// Layout Specs: A4 Width (96 DPI), 20px Padding, White Background
+	result, err := wrapper.TextToSpecs(
+		wordwrap.Width(wordwrap.A4Width(96)),
+		wordwrap.Padding(20, color.Black),
+		wordwrap.PageBackground(color.White),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, result.PageSize.X, result.PageSize.Y))
+	
+	// Draw Background
+	if result.PageBackground != nil {
+		draw.Draw(img, img.Bounds(), &image.Uniform{result.PageBackground}, image.Point{}, draw.Src)
+	}
+
+	if err := wrapper.RenderLines(img, result.Lines, result.ContentStart); err != nil {
+		log.Fatal(err)
+	}
+	// ...
+}
+```
+
+![](doc/a4_example.png)
+
+### A4 Document Layout (Full Page)
+
+Create a standard A4 document layout with both fixed width and height. Note that `A4Width` and `A4Height` require the target DPI (e.g., 96) to calculate the correct pixel dimensions.
+
+```go
+func ExampleSimpleWrapper_TextToSpecs_a4_full() {
+	// ... load font ...
+	text := "This is an example of a full A4 document layout..."
+
+	wrapper := wordwrap.NewRichWrapper(font, text)
+
+	// Layout Specs: A4 Width & Height (96 DPI), 20px Padding, White Background
+	result, err := wrapper.TextToSpecs(
+		wordwrap.Width(wordwrap.A4Width(96)),
+		wordwrap.Height(wordwrap.A4Height(96)),
+		wordwrap.Padding(20, color.Black),
+		wordwrap.PageBackground(color.White),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// ... Render same as included in the examples ...
+	// saveDocImage("a4_full_example.png", img)
+}
+```
+
+![](doc/a4_full_example.png)
+
+### Flexible Constraints (Min/Max/Auto)
+
+Use `Min` and `Max` to create flexible layouts. For example, `Min(A4, Unbounded)` effectively means "Auto width, but capped at A4 width" (logic: `min(A4, natural)`).
+
+```go
+func ExampleSimpleWrapper_TextToSpecs_flexible() {
+	// ...
+	wrapper := wordwrap.NewRichWrapper(font, "This text will wrap at A4 width...")
+
+	result, err := wrapper.TextToSpecs(
+		wordwrap.Width(wordwrap.Min(wordwrap.A4Width(96), wordwrap.Unbounded())),
+		wordwrap.PageBackground(color.White),
+	)
+	// ...
+}
+```
+
+![](doc/flexible_example.png)
+
+## Rich Text Support
+
+The library supports rich text including colors, fonts, inline images, backgrounds, and text effects (underline, strikethrough, highlight). These are composed using `NewRichWrapper` and functional options.
+
+### Comprehensive Example
+
+```go
+func Example_richTextComprehensive() {
+	// ... Setup resources (fonts, images) ...
+
+	args := []interface{}{
+		fontRegular,
+		"Standard text. ",
+		
+		// Text Color
+		wordwrap.TextColor(color.RGBA{0, 0, 255, 255}), 
+		"Blue Text. ",
+		wordwrap.TextColor(color.Black), // Reset
+		
+		// Background Color (Highlight)
+		wordwrap.BgColor(color.RGBA{255, 255, 0, 255}),
+		"Yellow Background. ",
+		
+		// Scoped Styles using Group
+		wordwrap.Group{
+			Args: []interface{}{
+				wordwrap.TextColor(color.RGBA{0, 100, 0, 255}),
+				"Scoped Green Text. ",
+				wordwrap.BgColor(color.RGBA{220, 255, 220, 255}),
+				"Green on Light Green. ",
+			},
+		},
+		"Back to Normal. ",
+		"\n\n",
+
+		// Font Size Changes
+		fontLarge, "Large Text. ",
+		fontRegular, "Normal Text. ",
+		"\n\n",
+
+		// Effects: Underline, Strikethrough
+		"Text with ",
+		wordwrap.Group{
+			Args: []interface{}{
+				wordwrap.Underline(color.RGBA{255, 0, 0, 255}),
+				"Red Underline",
+			},
+		},
+		" and ",
+		wordwrap.Group{
+			Args: []interface{}{
+				wordwrap.Strikethrough(color.Black),
+				"Strikethrough",
+			},
+		},
+		".\n\n",
+
+		// Inline Images and Alignment
+		"Image aligned baseline: ",
+		wordwrap.ImageContent{Image: redBox},
+		" Text after.",
+		"\n",
+		"Image aligned Top: ",
+		wordwrap.Group{
+			Args: []interface{}{
+				wordwrap.Alignment(wordwrap.AlignTop),
+				wordwrap.ImageContent{Image: redBox},
+			},
+		},
+		" (Text Top).",
+		"\n",
+		
+		// Background Image Pattern
+		wordwrap.Group{
+			Args: []interface{}{
+				wordwrap.BgImage(pattern),
+				"Text on Pattern Background. ",
+				fontLarge, "Even Large Text on Pattern.",
+			},
+		},
+	}
+
+	wrapper := wordwrap.NewRichWrapper(args...)
+	// ... Layout and Render ...
+	saveDocImage("richtext_comprehensive.png", img)
+}
+```
+
+![](doc/richtext_comprehensive.png)
+
 # License
 
-TBH I really haven't thought about it. Contact me
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+See the License for the specific language governing permissions and
+limitations under the License.
+
+# Container & Constraint System
+
+The library now supports advanced value-based constraint systems allowing for powerful nested layouts found in modern web/UI frameworks.
+
+## Nested Containers
+
+You can create `Container` groups that act as distinct layout units. These allow for:
+*   Nested padding and margins.
+*   Backgrounds that wrap specific blocks of content.
+*   Grouping elements for alignment.
+*   Applying constraints to entire blocks.
+
+```go
+content := wordwrap.Container(
+    wordwrap.Margin(fixed.R(0, 5, 0, 5)),
+    wordwrap.FixedBackground(
+        wordwrap.BgImage(pattern,
+            wordwrap.BoxPadding(fixed.R(10, 10, 10, 10),
+                wordwrap.Container(
+                    wordwrap.Color(color.Black, "Text inside container"),
+                ),
+            ),
+        ),
+    ),
+)
+```
+
+## Minimum Size Constraints
+
+You can enforce strict minimum sizes on containers or elements using `MinSize` or `MinWidth`. This is useful for creating buttons or layout blocks that must maintain a certain presence regardless of content size.
+
+```go
+// Force a button container to be at least 450px wide
+button := wordwrap.Container(
+    wordwrap.MinWidth(450),
+    wordwrap.BgColor(color.Yellow, "Wide Button"),
+)
+```
+
+## Alignment Helpers
+
+The `Align` helper simplifies vertical alignment within a line or container (Top, Middle, Bottom, Baseline).
+
+```go
+wordwrap.Align(wordwrap.AlignMiddle, myImage)
+```

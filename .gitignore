@@ -2,3 +2,5 @@
 *.iml
 /*.png
 generatesample
+/wordwrap
+coverage.out

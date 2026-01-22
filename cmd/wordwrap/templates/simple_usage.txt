@@ -1,0 +1,17 @@
+Usage: wordwrap simple [flags...]
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --width int       Doc width (default: 400)
+    --height int      Doc height (default: 600)
+    --dpi string      Doc dpi (default: 180.0)
+    --font string     Text font (default: goregular)
+    --size string     font size (default: 16.0)
+    --text string     File in or - for std input (default: -)
+    --out string      file to write to in some cases this is ignored (default: out.png)
+    --boxline         Box the line (default: false)
+    --boxbox          Box the box (default: false)
+    --yoverflow int   Y Overflow mode (default: 0)
