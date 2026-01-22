@@ -983,7 +983,7 @@ func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 			srci = originalSrc
 		}()
 	}
-	draw.Draw(i, bounds.Add(image.Pt(0, (y - ib.M.Ascent).Ceil())), srci, srci.Bounds().Min, draw.Over)
+	draw.Draw(i, bounds.Add(image.Pt(0, (y-ib.M.Ascent).Ceil())), srci, srci.Bounds().Min, draw.Over)
 	if ib.boxBox {
 		DrawBox(i, bounds, dc)
 	}
