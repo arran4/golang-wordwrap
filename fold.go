@@ -3,10 +3,10 @@ package wordwrap
 import (
 	"bytes"
 	"fmt"
+	"image"
+
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
-	"image"
-	"reflect"
 )
 
 // Line refers to a literal line of text
@@ -24,7 +24,7 @@ type Line interface {
 	// PopSpaceFor will push box at the end, if there isn't enough width, it will make width space.
 	PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) (int, error)
 	// setStats Sets the page stats
-	setStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
+	SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
 }
 
 // Folder is the literal line sizer & producer function
@@ -52,13 +52,13 @@ func (l *SimpleLine) horizontalPosition(hp HorizontalLinePosition) {
 	l.horizontalLinePosition = hp
 }
 
-// horizontalPosition getter
-func (l *SimpleLine) getHorizontalLinePosition() HorizontalLinePosition {
+// GetHorizontalLinePosition getter
+func (l *SimpleLine) GetHorizontalLinePosition() HorizontalLinePosition {
 	return l.horizontalLinePosition
 }
 
-// setStats Sets the page stats
-func (l *SimpleLine) setStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int) {
+// SetStats Sets the page stats
+func (l *SimpleLine) SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int) {
 	l.stats = &LinePositionStats{
 		LineNumber:    lineNumber,
 		PageNumber:    pageNumber,
@@ -286,8 +286,10 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		sf.lastFontDrawer = fontDrawer
 	}
 	a := b.AdvanceRect()
-	switch b.(type) {
-	case *SimpleTextBox:
+	switch b := b.(type) {
+	case *LineBreakBox:
+		done = true
+	default:
 		irdx := a.Ceil()
 		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
 		cdx := sf.container.Dx()
@@ -303,10 +305,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 			done = true
 			return done, nil
 		}
-	case *LineBreakBox:
-		done = true
-	default:
-		return true, fmt.Errorf("unknown box at pos %d: %s", sf.boxer.Pos()-i, reflect.TypeOf(b))
 	}
 	l.Push(b, a)
 	return done, nil
@@ -326,4 +324,19 @@ func (l *SimpleLine) Size() image.Rectangle {
 // setPageBreakBox sets the page break box, this is called by an Option
 func (sf *SimpleFolder) setPageBreakBox(b Box) {
 	sf.pageBreakBox = b
+}
+
+// YOverflowMode returns the overflow mode
+func (sf *SimpleFolder) YOverflowMode() OverflowMode {
+	return sf.yOverflow
+}
+
+// GetPageBreakBox returns the page break box
+func (sf *SimpleFolder) GetPageBreakBox() Box {
+	return sf.pageBreakBox
+}
+
+// LastFontDrawer returns the last used font drawer
+func (sf *SimpleFolder) LastFontDrawer() *font.Drawer {
+	return sf.lastFontDrawer
 }

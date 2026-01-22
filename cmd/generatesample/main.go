@@ -6,9 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/arran4/golang-wordwrap"
-	"github.com/arran4/golang-wordwrap/util"
-	"golang.org/x/image/font"
 	"image"
 	"image/draw"
 	"image/png"
@@ -16,6 +13,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/arran4/golang-wordwrap"
+	"github.com/arran4/golang-wordwrap/util"
+	"golang.org/x/image/font"
 )
 
 func init() {
@@ -28,6 +29,7 @@ var (
 )
 
 func main() {
+	log.Println("DEPRECATED: This example uses deprecated functionality. For rich text wrapping features, please refer to: github.com/arran4/golang-rich-text")
 	flag.Parse()
 	chevronImage, _ := png.Decode(bytes.NewReader(chevronImageBytes))
 	grf, err := GetFontFace("goregular", 16, 180)

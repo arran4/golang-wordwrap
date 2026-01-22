@@ -2,11 +2,14 @@ package wordwrap
 
 import (
 	"fmt"
-	"golang.org/x/image/font"
 	"image"
+
+	"golang.org/x/image/font"
 )
 
 // SimpleWrapper quick and dirty wrapper.
+//
+// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 type SimpleWrapper struct {
 	folderOptions           []FolderOption
 	boxerOptions            []BoxerOption
@@ -48,6 +51,8 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 
 // NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
 // assumes black text
+//
+// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
 	fontDrawer := &font.Drawer{
 		Src:  image.NewUniform(image.Black),
@@ -63,7 +68,7 @@ func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *Simple
 
 // HorizontalLinePositioner is a simple interface denoting a getter
 type HorizontalLinePositioner interface {
-	getHorizontalLinePosition() HorizontalLinePosition
+	GetHorizontalLinePosition() HorizontalLinePosition
 }
 
 // RenderLines draws the boxes for the given lines. on the image, starting at the specified point ignoring the original
@@ -74,7 +79,7 @@ func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point, options
 	for _, l := range ls {
 		s := l.Size()
 		if l, ok := l.(HorizontalLinePositioner); ok {
-			switch l.getHorizontalLinePosition() {
+			switch l.GetHorizontalLinePosition() {
 			case HorizontalCenterLines:
 				s = s.Add(image.Pt((bounds.Max.X-(s.Max.X-s.Min.X))/2, 0))
 			case RightLines:
@@ -190,7 +195,7 @@ func (sw *SimpleWrapper) TextToRect(r image.Rectangle, ops ...FitterOption) ([]L
 		if stop {
 			break
 		}
-		l.setStats(len(ls), sw.currentPage, sw.boxCount, pageBoxCount)
+		l.SetStats(len(ls), sw.currentPage, sw.boxCount, pageBoxCount)
 		boxCount := len(l.Boxes())
 		sw.boxCount += boxCount
 		pageBoxCount += boxCount

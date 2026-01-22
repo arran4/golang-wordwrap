@@ -3,11 +3,12 @@ package wordwrap
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/draw"
 	"unicode"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 // Box is a representation of a non-divisible unit (can be nested)
@@ -62,6 +63,8 @@ func IsLF(r rune) bool {
 
 // SimpleBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
 // the calling Folder that. Putting the elements in the correct Box.
+//
+// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 type SimpleBoxer struct {
 	postBoxOptions []func(Box)
 	text           []rune
@@ -76,6 +79,8 @@ var _ Boxer = (*SimpleBoxer)(nil)
 
 // NewSimpleBoxer simple tokenizer basically determines if something unicode.IsSpace or is a new line, or is text and tells
 // the calling Folder that. Putting the elements in the correct Box.
+//
+// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 func NewSimpleBoxer(text []rune, drawer *font.Drawer, options ...BoxerOption) *SimpleBoxer {
 	sb := &SimpleBoxer{
 		text:       text,
@@ -237,6 +242,8 @@ func Once(f func(r rune) bool) func(rune) bool {
 }
 
 // SimpleTextBox represents an indivisible series of characters.
+//
+// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 type SimpleTextBox struct {
 	Contents string
 	Bounds   fixed.Rectangle26_6
@@ -247,6 +254,8 @@ type SimpleTextBox struct {
 }
 
 // NewSimpleTextBox constructor
+//
+// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 func NewSimpleTextBox(drawer *font.Drawer, t string) (Box, error) {
 	if drawer == nil {
 		return nil, errors.New("font drawer not provided")
