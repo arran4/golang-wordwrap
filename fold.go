@@ -289,11 +289,11 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		sf.lastFontDrawer = fontDrawer
 	}
 	a := b.AdvanceRect()
-	switch b.(type) {
+	switch b := b.(type) {
 	case *LineBreakBox:
 		done = true
 	case *FillLineBox:
-		if b.(*FillLineBox).Mode == FillEntireLine && len(l.boxes) > 0 {
+		if b.Mode == FillEntireLine && len(l.boxes) > 0 {
 			sf.boxer.Push(b)
 			done = true
 			return done, nil
