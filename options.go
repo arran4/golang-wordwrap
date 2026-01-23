@@ -2,9 +2,6 @@ package wordwrap
 
 import (
 	"log"
-
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 )
 
 /*
@@ -46,7 +43,7 @@ var _ WrapperOption = boxerOptionFunc(nil)
 
 // addBoxConfig interface that applies the config
 type addBoxConfig interface {
-	addBoxConfig(BoxerOption)
+	AddBoxConfig(BoxerOption)
 }
 
 // Reports interface adherence
@@ -54,8 +51,8 @@ var _ addBoxConfig = (*SimpleWrapper)(nil)
 
 // ApplyWrapperConfig function that fills the: WrapperOption requirement for the BoxerOption interface
 func (b boxerOptionFunc) ApplyWrapperConfig(wr interface{}) {
-	if wr, ok := wr.(interface{ addBoxConfig(BoxerOption) }); ok {
-		wr.addBoxConfig(b)
+	if wr, ok := wr.(addBoxConfig); ok {
+		wr.AddBoxConfig(b)
 	} else {
 		log.Printf("can't apply")
 	}
@@ -75,7 +72,7 @@ var _ WrapperOption = folderOptionFunc(nil)
 
 // addFoldConfig interface that applies the config
 type addFoldConfig interface {
-	addFoldConfig(FolderOption)
+	AddFoldConfig(FolderOption)
 }
 
 // Reports interface adherence
@@ -84,7 +81,7 @@ var _ addFoldConfig = (*SimpleWrapper)(nil)
 // ApplyWrapperConfig function that fills the: WrapperOption requirement for the FolderOption interface
 func (f folderOptionFunc) ApplyWrapperConfig(wr interface{}) {
 	if wr, ok := wr.(addFoldConfig); ok {
-		wr.addFoldConfig(f)
+		wr.AddFoldConfig(f)
 	} else {
 		log.Printf("can't apply")
 	}
@@ -117,8 +114,8 @@ var BoxLine = folderOptionFunc(func(f interface{}) {
 	if f, ok := f.(*SimpleFolder); ok {
 		f.lineOptions = append(f.lineOptions, func(line Line) {
 			switch line := line.(type) {
-			case interface{ turnOnBox() }:
-				line.turnOnBox()
+			case interface{ TurnOnBox() }:
+				line.TurnOnBox()
 			default:
 				log.Printf("can't apply")
 			}
@@ -134,8 +131,8 @@ func NewPageBreakBox(b Box, opts ...BoxerOption) WrapperOption {
 			o.ApplyBoxConfig(b)
 		}
 		switch f := f.(type) {
-		case interface{ setPageBreakBox(b Box) }:
-			f.setPageBreakBox(b)
+		case interface{ SetPageBreakBox(b Box) }:
+			f.SetPageBreakBox(b)
 		default:
 			log.Printf("can't apply")
 		}
@@ -156,8 +153,8 @@ func YOverflow(i OverflowMode) WrapperOption {
 var BoxBox = boxerOptionFunc(func(f interface{}) {
 	bf := func(box Box) {
 		switch box := box.(type) {
-		case interface{ turnOnBox() }:
-			box.turnOnBox()
+		case interface{ TurnOnBox() }:
+			box.TurnOnBox()
 		}
 	}
 	switch f := f.(type) {
@@ -168,76 +165,6 @@ var BoxBox = boxerOptionFunc(func(f interface{}) {
 		bf(f)
 	}
 })
-
-// ImageBoxOption modifiers for the ImageBox
-type ImageBoxOption interface {
-	applyImageBoxOption(box *ImageBox)
-}
-
-type imageBoxOptionMetricCalcFunc func(ib2 *ImageBox) font.Metrics
-
-func (i imageBoxOptionMetricCalcFunc) applyImageBoxOption(box *ImageBox) {
-	box.metricCalc = i
-}
-
-var _ ImageBoxOption = (imageBoxOptionMetricCalcFunc)(nil)
-
-// ImageBoxMetricAboveTheLine Puts the image above the baseline as you would expect if you were using a word processor
-var ImageBoxMetricAboveTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox) font.Metrics {
-	return font.Metrics{
-		Height: fixed.I(ib.I.Bounds().Dy()),
-		Ascent: fixed.I(ib.I.Bounds().Dy()),
-	}
-}
-
-// ImageBoxMetricBelowTheLine Puts the image above the baseline. Rarely done
-var ImageBoxMetricBelowTheLine imageBoxOptionMetricCalcFunc = func(ib *ImageBox) font.Metrics {
-	return font.Metrics{
-		Height:  fixed.I(ib.I.Bounds().Dy()),
-		Ascent:  fixed.I(ib.I.Bounds().Dy()) / 2,
-		Descent: fixed.I(ib.I.Bounds().Dy()) - fixed.I(ib.I.Bounds().Dy())/2,
-	}
-}
-
-// ImageBoxMetricCenter Puts the image running from the top down
-var ImageBoxMetricCenter = func(fd *font.Drawer) imageBoxOptionMetricCalcFunc {
-	return func(ib *ImageBox) font.Metrics {
-		if fd == nil {
-			fd = ib.fontDrawer
-		}
-		if fd == nil {
-			return ImageBoxMetricBelowTheLine(ib)
-		}
-		m := fd.Face.Metrics()
-		return font.Metrics{
-			Height:  fixed.I(ib.I.Bounds().Dy()),
-			Descent: fixed.I(ib.I.Bounds().Dy())/2 - m.Descent/2,
-			Ascent:  fixed.I(ib.I.Bounds().Dy())/2 + m.Descent/2,
-		}
-	}
-}
-
-// FontDrawer a wrapper around *font.Draw used to set the font
-type FontDrawer struct {
-	d *font.Drawer
-}
-
-// NewFontDrawer a wrapper around *font.Draw used to set the font mostly for image
-func NewFontDrawer(d *font.Drawer) *FontDrawer {
-	return &FontDrawer{
-		d: d,
-	}
-}
-
-// applyImageBoxOption
-func (f *FontDrawer) applyImageBoxOption(box *ImageBox) {
-	box.fontDrawer = f.d
-}
-
-var (
-	// Enforce interface adherence
-	_ ImageBoxOption = (*FontDrawer)(nil)
-)
 
 // HorizontalLinePosition is the type for per-line level alignment.
 type HorizontalLinePosition int
@@ -262,7 +189,7 @@ var (
 // refactored
 func (hp HorizontalLinePosition) ApplyWrapperConfig(wr interface{}) {
 	if wr, ok := wr.(addFoldConfig); ok {
-		wr.addFoldConfig(hp)
+		wr.AddFoldConfig(hp)
 	} else {
 		log.Printf("can't apply")
 	}
@@ -273,8 +200,10 @@ func (hp HorizontalLinePosition) ApplyFoldConfig(f interface{}) {
 	if f, ok := f.(*SimpleFolder); ok {
 		f.lineOptions = append(f.lineOptions, func(line Line) {
 			switch line := line.(type) {
-			case interface{ horizontalPosition(HorizontalLinePosition) }:
-				line.horizontalPosition(hp)
+			case interface {
+				SetHorizontalPosition(HorizontalLinePosition)
+			}:
+				line.SetHorizontalPosition(hp)
 			default:
 				log.Printf("can't apply")
 			}
@@ -300,8 +229,10 @@ var _ WrapperOption = LeftBLock
 // ApplyWrapperConfig Stores the position against the wrapper object
 func (hp HorizontalBlockPosition) ApplyWrapperConfig(wr interface{}) {
 	switch block := wr.(type) {
-	case interface{ horizontalPosition(HorizontalBlockPosition) }:
-		block.horizontalPosition(hp)
+	case interface {
+		SetHorizontalBlockPosition(HorizontalBlockPosition)
+	}:
+		block.SetHorizontalBlockPosition(hp)
 	default:
 		log.Printf("can't apply")
 	}
@@ -325,8 +256,10 @@ var _ WrapperOption = TopBLock
 // ApplyWrapperConfig Stores the position against the wrapper object
 func (hp VerticalBlockPosition) ApplyWrapperConfig(wr interface{}) {
 	switch block := wr.(type) {
-	case interface{ verticalPosition(VerticalBlockPosition) }:
-		block.verticalPosition(hp)
+	case interface {
+		SetVerticalBlockPosition(VerticalBlockPosition)
+	}:
+		block.SetVerticalBlockPosition(hp)
 	default:
 		log.Printf("can't apply")
 	}

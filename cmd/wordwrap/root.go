@@ -57,7 +57,7 @@ type RootCmd struct {
 
 func (c *RootCmd) Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	c.FlagSet.PrintDefaults()
+	c.PrintDefaults()
 	fmt.Fprintln(os.Stderr, "  Commands:")
 	for name := range c.Commands {
 		fmt.Fprintf(os.Stderr, "    %s\n", name)
@@ -66,14 +66,11 @@ func (c *RootCmd) Usage() {
 
 func (c *RootCmd) UsageRecursive() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	c.FlagSet.PrintDefaults()
+	c.PrintDefaults()
 	fmt.Fprintln(os.Stderr, "  Commands:")
 	fmt.Fprintf(os.Stderr, "    %s\n", "dogoal")
 	fmt.Fprintf(os.Stderr, "    %s\n", "pagelimits")
-	fmt.Fprintf(os.Stderr, "    %s\n", "rich")
-	fmt.Fprintf(os.Stderr, "    %s\n", "sample")
 	fmt.Fprintf(os.Stderr, "    %s\n", "simple")
-	fmt.Fprintf(os.Stderr, "    %s\n", "texttoimage")
 }
 
 func NewRoot(name, version, commit, date string) (*RootCmd, error) {
@@ -87,10 +84,7 @@ func NewRoot(name, version, commit, date string) (*RootCmd, error) {
 	c.FlagSet.Usage = c.Usage
 	c.Commands["dogoal"] = c.NewDogoal()
 	c.Commands["pagelimits"] = c.NewPagelimits()
-	c.Commands["rich"] = c.NewRich()
-	c.Commands["sample"] = c.NewSample()
 	c.Commands["simple"] = c.NewSimple()
-	c.Commands["texttoimage"] = c.NewTexttoimage()
 	c.Commands["help"] = &InternalCommand{
 		Exec: func(args []string) error {
 			for _, arg := range args {
@@ -130,10 +124,10 @@ func NewRoot(name, version, commit, date string) (*RootCmd, error) {
 }
 
 func (c *RootCmd) Execute(args []string) error {
-	if err := c.FlagSet.Parse(args); err != nil {
+	if err := c.Parse(args); err != nil {
 		return NewUserError(err, fmt.Sprintf("flag parse error %s", err.Error()))
 	}
-	remainingArgs := c.FlagSet.Args()
+	remainingArgs := c.Args()
 	if len(remainingArgs) < 1 {
 		c.Usage()
 		return nil

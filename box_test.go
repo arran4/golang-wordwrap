@@ -230,7 +230,7 @@ func TestSimpleBoxer_BoxNextWord(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sb := NewSimpleBoxer([]*Content{{text: tt.args.text}}, &font.Drawer{
+			sb := NewSimpleBoxer([]rune(tt.args.text), &font.Drawer{
 				Src:  tt.args.color,
 				Face: tt.args.fce,
 			})
@@ -300,8 +300,8 @@ func TestSimpleBoxer_Reset(t *testing.T) {
 	fontFace := FontFace16DPI180ForTest(t)
 	drawer := &font.Drawer{Face: fontFace, Src: image.NewUniform(color.Black)}
 
-	contents := []*Content{{text: text}}
-	boxer := NewSimpleBoxer(contents, drawer)
+	// contents := []*Content{{text: text}}
+	boxer := NewSimpleBoxer([]rune(text), drawer)
 
 	// Consume some boxes
 	_, _, err := boxer.Next()

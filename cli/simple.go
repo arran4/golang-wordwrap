@@ -6,7 +6,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/arran4/golang-wordwrap"
+	wordwrap "github.com/arran4/golang-wordwrap"
 	"github.com/arran4/golang-wordwrap/util"
 )
 
@@ -37,12 +37,12 @@ func SimpleWrapToImage(width int, height int, dpiStr string, fontname string, fo
 	i := image.NewRGBA(image.Rect(0, 0, width, height))
 	gr, err := util.OpenFont(fontname)
 	if err != nil {
-		return fmt.Errorf("Error opening font %s: %w", fontname, err)
+		return fmt.Errorf("error opening font %s: %w", fontname, err)
 	}
 	grf := util.GetFontFace(fontsize, dpi, gr)
 	text, err := GetText(textsource)
 	if err != nil {
-		return fmt.Errorf("Text fetch error: %w", err)
+		return fmt.Errorf("text fetch error: %w", err)
 	}
 	var opts []wordwrap.WrapperOption
 	if boxline {
@@ -54,16 +54,16 @@ func SimpleWrapToImage(width int, height int, dpiStr string, fontname string, fo
 	if yoverflow > 0 {
 		opts = append(opts, wordwrap.YOverflow(wordwrap.OverflowMode(yoverflow)))
 	}
-	sw := wordwrap.NewSimpleWrapper([]*wordwrap.Content{wordwrap.NewContent(text)}, grf, opts...)
+	sw := wordwrap.NewSimpleWrapper(text, grf, opts...)
 	lines, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
-		return fmt.Errorf("Text wrap error: %w", err)
+		return fmt.Errorf("text wrap error: %w", err)
 	}
 	if err := sw.RenderLines(i, lines, i.Bounds().Min); err != nil {
-		return fmt.Errorf("Text draw error: %w", err)
+		return fmt.Errorf("text draw error: %w", err)
 	}
 	if err := SaveFile(i, outfilename); err != nil {
-		return fmt.Errorf("Error with saving file: %w", err)
+		return fmt.Errorf("error with saving file: %w", err)
 	}
 	log.Printf("Done as %s", outfilename)
 	return nil
