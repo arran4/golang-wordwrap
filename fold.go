@@ -292,6 +292,24 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 	switch b.(type) {
 	case *LineBreakBox:
 		done = true
+	case *FillLineBox:
+		if b.(*FillLineBox).Mode == FillEntireLine && len(l.boxes) > 0 {
+			sf.boxer.Push(b)
+			done = true
+			return done, nil
+		}
+		currentWidthFixed := l.size.Max.X - l.size.Min.X
+		newTotalWidthFixed := currentWidthFixed + a
+		if newTotalWidthFixed.Ceil() > sf.container.Dx() {
+			if len(l.boxes) > 0 {
+				sf.boxer.Push(b)
+				done = true
+				return done, nil
+			}
+		}
+		l.Push(b, a)
+		done = true
+		return done, nil
 	default:
 		// Check total width (Fixed Int26_6 addition then Ceil) against Container width (Int)
 		// irdx (Integers) is not precise enough for strict accumulation
