@@ -7,9 +7,4 @@ require (
 	golang.org/x/image v0.35.0
 )
 
-require (
-	github.com/arran4/go-pattern v0.0.6
-	github.com/google/go-cmp v0.6.0
-)
-
-require golang.org/x/text v0.33.0 // indirect
+require github.com/google/go-cmp v0.6.0

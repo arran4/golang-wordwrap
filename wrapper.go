@@ -7,7 +7,6 @@ import (
 	"golang.org/x/image/font"
 )
 
-// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
 // SimpleWrapper provides basic text wrapping functionality.
 type SimpleWrapper struct {
 	folderOptions           []FolderOption
@@ -20,27 +19,24 @@ type SimpleWrapper struct {
 	verticalBlockPosition   VerticalBlockPosition
 }
 
-// horizontalPosition sets the horizontalBlockPosition
-func (sw *SimpleWrapper) horizontalPosition(hp HorizontalBlockPosition) {
+// SetHorizontalBlockPosition sets the horizontalBlockPosition
+func (sw *SimpleWrapper) SetHorizontalBlockPosition(hp HorizontalBlockPosition) {
 	sw.horizontalBlockPosition = hp
 }
 
-// verticalPosition sets the verticalBlockPosition
-func (sw *SimpleWrapper) verticalPosition(hp VerticalBlockPosition) {
+// SetVerticalBlockPosition sets the verticalBlockPosition
+func (sw *SimpleWrapper) SetVerticalBlockPosition(hp VerticalBlockPosition) {
 	sw.verticalBlockPosition = hp
 }
 
-// addFoldConfig allows passing down of FolderOption
-func (sw *SimpleWrapper) addFoldConfig(option FolderOption) {
+// AddFoldConfig allows passing down of FolderOption
+func (sw *SimpleWrapper) AddFoldConfig(option FolderOption) {
 	sw.folderOptions = append(sw.folderOptions, option)
 }
 
-// SimpleWrapTextToImage all in one helper function to wrap text onto an image. Use image.Image's SubImage() to specify
-// the exact location to render:
-//
-//	SimpleWrapTextToImage("text", i.SubImage(image.Rect(30,30,400,400)), font)
+// SimpleWrapTextToImage all in one helper function to wrap text onto an image.
 func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperOption) error {
-	sw := NewSimpleWrapper([]*Content{{text: text}}, grf, opts...)
+	sw := NewSimpleWrapper(text, grf, opts...)
 	ls, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
 		return fmt.Errorf("wrapping text: %s", err)
@@ -48,36 +44,17 @@ func SimpleWrapTextToImage(text string, i Image, grf font.Face, opts ...WrapperO
 	return sw.RenderLines(i, ls, i.Bounds().Min)
 }
 
-// NewSimpleWrapper creates a new wrapper. This function retains previous text position, useful for creating "pages."
-// assumes black text
-//
-// Deprecated: Moved to github.com/arran4/golang-rich-text/richtext
-func NewSimpleWrapper(contents []*Content, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
-	args := []interface{}{contents, grf}
-	for _, opt := range opts {
-		args = append(args, opt)
+// NewSimpleWrapper creates a new wrapper for plain text.
+func NewSimpleWrapper(text string, grf font.Face, opts ...WrapperOption) *SimpleWrapper {
+	drawer := &font.Drawer{
+		Src:  image.NewUniform(image.Black),
+		Face: grf,
 	}
-	return NewRichWrapper(args...)
-}
-
-// NewRichWrapper creates a new wrapper. valid args are font.Face, string, and WrapperOption
-func NewRichWrapper(args ...interface{}) *SimpleWrapper {
-	contents, fontDrawer, wrapperOptions, boxerOptions, boxer, tokenizer := ProcessRichArgs(args...)
-
 	sw := &SimpleWrapper{
-		fontDrawer:   fontDrawer,
-		boxerOptions: boxerOptions,
+		fontDrawer: drawer,
 	}
-	sw.ApplyOptions(wrapperOptions...)
-	if boxer == nil {
-		sb := NewSimpleBoxer(contents, fontDrawer, sw.boxerOptions...)
-		if tokenizer != nil {
-			sb.Tokenizer = tokenizer
-		}
-		sw.boxer = sb
-	} else {
-		sw.boxer = boxer
-	}
+	sw.ApplyOptions(opts...)
+	sw.boxer = NewSimpleBoxer([]rune(text), drawer, sw.boxerOptions...)
 	return sw
 }
 
@@ -86,8 +63,7 @@ type HorizontalLinePositioner interface {
 	GetHorizontalLinePosition() HorizontalLinePosition
 }
 
-// RenderLines draws the boxes for the given lines. on the image, starting at the specified point ignoring the original
-// boundaries but maintaining the wrapping. Also applies alignment options.
+// RenderLines draws the boxes for the given lines.
 func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point, options ...DrawOption) error {
 	bounds := i.Bounds()
 	offset := sw.calculateAlignmentOffset(ls, bounds)
@@ -110,8 +86,7 @@ func (sw *SimpleWrapper) RenderLines(i Image, ls []Line, at image.Point, options
 	return nil
 }
 
-// calculateAlignmentOffset calculates the appropriate alignment offset for the block alignments VerticalBlockPosition
-// and HorizontalBlockPosition
+// calculateAlignmentOffset calculates the appropriate alignment offset
 func (sw *SimpleWrapper) calculateAlignmentOffset(ls []Line, bounds image.Rectangle) (offset image.Point) {
 	var actualSize *image.Point
 	if sw.horizontalBlockPosition != LeftBLock || sw.verticalBlockPosition != TopBLock {
@@ -141,20 +116,20 @@ func (sw *SimpleWrapper) calculateAlignmentOffset(ls []Line, bounds image.Rectan
 
 // SimpleWrapTextToRect calculates and returns the position of each box and the image.Point it would end.
 func SimpleWrapTextToRect(text string, r image.Rectangle, grf font.Face, opts ...WrapperOption) (*SimpleWrapper, []Line, image.Point, error) {
-	sw := NewSimpleWrapper([]*Content{{text: text}}, grf, opts...)
+	sw := NewSimpleWrapper(text, grf, opts...)
 	l, p, err := sw.TextToRect(r)
 	return sw, l, p, err
 }
 
-// ApplyOptions allows the application of options to the SimpleWrapper (Such as new fonts, or turning on / off boxes.
+// ApplyOptions allows the application of options to the SimpleWrapper
 func (sw *SimpleWrapper) ApplyOptions(opts ...WrapperOption) {
 	for _, opt := range opts {
 		opt.ApplyWrapperConfig(sw)
 	}
 }
 
-// addBoxConfig Adds a constructor box config option to the boxer
-func (sw *SimpleWrapper) addBoxConfig(bo BoxerOption) {
+// AddBoxConfig Adds a constructor box config option to the boxer
+func (sw *SimpleWrapper) AddBoxConfig(bo BoxerOption) {
 	sw.boxerOptions = append(sw.boxerOptions, bo)
 }
 

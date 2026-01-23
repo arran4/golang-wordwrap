@@ -45,10 +45,10 @@ type SimpleLine struct {
 }
 
 // Ensures that the interface is filled
-var _ interface{ horizontalPosition(HorizontalLinePosition) } = (*SimpleLine)(nil)
+var _ interface{ SetHorizontalPosition(HorizontalLinePosition) } = (*SimpleLine)(nil)
 
-// horizontalPosition setter
-func (l *SimpleLine) horizontalPosition(hp HorizontalLinePosition) {
+// SetHorizontalPosition setter
+func (l *SimpleLine) SetHorizontalPosition(hp HorizontalLinePosition) {
 	l.horizontalLinePosition = hp
 }
 
@@ -152,8 +152,8 @@ func (l *SimpleLine) TextValue() string {
 	return sb.String()
 }
 
-// turnOnBox turns on drawing a box around the used portion of the line
-func (l *SimpleLine) turnOnBox() {
+// TurnOnBox turns on drawing a box around the used portion of the line
+func (l *SimpleLine) TurnOnBox() {
 	l.boxLine = true
 }
 
@@ -312,15 +312,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 				return done, nil
 			}
 		}
-	case *ImageBox:
-		irdx := a.Ceil()
-		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
-		cdx := sf.container.Dx()
-		if irdx+szdx >= cdx {
-			sf.boxer.Push(b)
-			done = true
-			return done, nil
-		}
 	}
 	l.Push(b, a)
 	return done, nil
@@ -337,8 +328,8 @@ func (l *SimpleLine) Size() image.Rectangle {
 	}
 }
 
-// setPageBreakBox sets the page break box, this is called by an Option
-func (sf *SimpleFolder) setPageBreakBox(b Box) {
+// SetPageBreakBox sets the page break box, this is called by an Option
+func (sf *SimpleFolder) SetPageBreakBox(b Box) {
 	sf.pageBreakBox = b
 }
 

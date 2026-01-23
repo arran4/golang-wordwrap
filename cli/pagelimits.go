@@ -136,7 +136,7 @@ func PageLimits() error {
 func runScenario(s Scenario, grf font.Face) error {
 	// Create factory for wrapper (content might need regeneration if stateful)
 	createWrapper := func() *wordwrap.SimpleWrapper {
-		return wordwrap.NewSimpleWrapper([]*wordwrap.Content{wordwrap.NewContent(s.Content)}, grf)
+		return wordwrap.NewSimpleWrapper(s.Content, grf)
 	}
 
 	// Resolve Constraints
