@@ -60,6 +60,9 @@ func GenerateSample() error {
 			return err
 		}
 	}
+	if err := SampleGameMenu(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -98,3 +101,129 @@ func getFontFace(fontname string, fontsize float64, dpi float64) (font.Face, err
 	grf := util.GetFontFace(fontsize, dpi, gr)
 	return grf, err
 }
+
+func SampleGameMenu() error {
+	width := 800
+	height := 600
+	outfilename := "images/gamemenu/menu.png"
+	log.Printf("Working on %s", outfilename)
+	i := image.NewRGBA(image.Rect(0, 0, width, height))
+	// Dark background
+	draw.Draw(i, i.Bounds(), image.NewUniform(image.Black), i.Bounds().Min, draw.Over)
+
+	// Font setup
+	grf, err := getFontFace("goregular", 24, 75)
+	if err != nil {
+		return fmt.Errorf("Error opening font: %w", err)
+	}
+	drawer := &font.Drawer{
+		Src:  image.NewUniform(image.White),
+		Face: grf,
+	}
+
+	// Helper to create a menu item line
+	menuItem := func(text string) wordwrap.Box {
+		// Basic text box
+		tb, _ := wordwrap.NewSimpleTextBox(drawer, text)
+		// Wrap in AlignedBox for centering (using AlignMiddle or AlignBaseline + width tricks, but AlignedBox mostly affects vertical alignment in a line)
+		// Actually, to center text horizontally in a line that consumes the full width, we rely on the line logic or a wrapper.
+		// But here we are constructing boxes manually.
+		// If we use HorizontalCenterLines option on the folder, it should center the content of the line.
+		// FillLineBox ensures the content takes a whole line.
+		return wordwrap.NewFillLineBox(tb, wordwrap.FillEntireLine)
+	}
+
+	boxes := []wordwrap.Box{
+		// Title manually
+		wordwrap.NewFillLineBox(
+			func() wordwrap.Box {
+				b, _ := wordwrap.NewSimpleTextBox(drawer, "GAME MENU")
+				return b
+			}(),
+			wordwrap.FillEntireLine,
+		),
+		// Spacing - Image box with height
+		wordwrap.NewFillLineBox(wordwrap.NewImageBox(image.NewRGBA(image.Rect(0, 0, 1, 50))), wordwrap.FillEntireLine), // Spacer
+
+		menuItem("NEW GAME"),
+		menuItem("LOAD GAME"),
+		menuItem("OPTIONS"),
+		menuItem("EXIT"),
+	}
+
+	// Manual Boxer using refinedBoxer struct
+	myBoxer := &refinedBoxer{
+		boxes: boxes,
+	}
+
+	// Folder with HorizontalCenterLines to center the text within the filled lines
+	folder := wordwrap.NewSimpleFolder(myBoxer, i.Bounds(), drawer, wordwrap.HorizontalCenterLines)
+
+	// Layout
+	y := 0
+	for {
+		line, err := folder.Next(height - y)
+		if err != nil {
+			return fmt.Errorf("layout error: %w", err)
+		}
+		if line == nil {
+			break
+		}
+
+		// Draw
+		// DrawLine usually draws at (0,0) of the provided image.
+		// We need to provide a subimage starting at y.
+		r := image.Rect(0, y, width, y+line.Size().Dy())
+		if r.Dy() > 0 {
+			subI := i.SubImage(r).(wordwrap.Image)
+			// DrawLine expects an Image interface which typically includes SubImage.
+			// NewRGBA implements Image.
+			line.DrawLine(subI)
+		}
+		y += line.Size().Dy()
+	}
+
+	if err := SaveFile(i, outfilename); err != nil {
+		return fmt.Errorf("Error with saving file: %w", err)
+	}
+	log.Printf("Done as %s", outfilename)
+	return nil
+}
+
+type refinedBoxer struct {
+	boxes []wordwrap.Box
+	n     int
+	queue []wordwrap.Box
+}
+
+func (rb *refinedBoxer) Next() (wordwrap.Box, int, error) {
+	if len(rb.queue) > 0 {
+		b := rb.queue[0]
+		rb.queue = rb.queue[1:]
+		return b, 0, nil
+	}
+	if rb.n >= len(rb.boxes) {
+		return nil, 0, nil
+	}
+	b := rb.boxes[rb.n]
+	rb.n++
+	return b, 1, nil
+}
+func (rb *refinedBoxer) SetFontDrawer(face *font.Drawer) {}
+func (rb *refinedBoxer) FontDrawer() *font.Drawer          { return nil }
+func (rb *refinedBoxer) Back(i int)                      { rb.n -= i; if rb.n < 0 { rb.n = 0 } }
+func (rb *refinedBoxer) HasNext() bool                   { return len(rb.queue) > 0 || rb.n < len(rb.boxes) }
+func (rb *refinedBoxer) Push(box ...wordwrap.Box)        { rb.queue = append(rb.queue, box...) }
+func (rb *refinedBoxer) Pos() int                        { return rb.n }
+func (rb *refinedBoxer) Unshift(box ...wordwrap.Box) {
+	rb.queue = append(append(make([]wordwrap.Box, 0, len(box)+len(rb.queue)), box...), rb.queue...)
+}
+func (rb *refinedBoxer) Shift() wordwrap.Box {
+	if len(rb.queue) > 0 {
+		b := rb.queue[0]
+		rb.queue = rb.queue[1:]
+		return b
+	}
+	return nil
+}
+func (rb *refinedBoxer) Reset() { rb.n = 0; rb.queue = nil }
