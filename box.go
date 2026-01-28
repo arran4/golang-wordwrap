@@ -1206,3 +1206,22 @@ func (flb *FillLineBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 
 // Ensure interface compliance
 var _ Box = (*FillLineBox)(nil)
+
+// StretchBox forces the inner box to have a specific AdvanceRect
+type StretchBox struct {
+	Box
+	Width fixed.Int26_6
+}
+
+// AdvanceRect returns the forced width
+func (sb *StretchBox) AdvanceRect() fixed.Int26_6 {
+	return sb.Width
+}
+
+// DrawBox delegates to the inner box
+func (sb *StretchBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	sb.Box.DrawBox(i, y, dc)
+}
+
+// Ensure interface compliance
+var _ Box = (*StretchBox)(nil)

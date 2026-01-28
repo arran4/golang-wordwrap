@@ -298,18 +298,43 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 			done = true
 			return done, nil
 		}
-		currentWidthFixed := l.size.Max.X - l.size.Min.X
-		newTotalWidthFixed := currentWidthFixed + a
-		if newTotalWidthFixed.Ceil() > sf.container.Dx() {
+
+		currentWidth := l.size.Max.X - l.size.Min.X
+		containerWidth := fixed.I(sf.container.Dx())
+		availableWidth := containerWidth - currentWidth
+		if availableWidth < 0 {
+			availableWidth = 0
+		}
+
+		if a > availableWidth {
 			if len(l.boxes) > 0 {
 				sf.boxer.Push(b)
 				done = true
 				return done, nil
 			}
+			// If line is empty and content is larger than container, we proceed (overflow/clip).
+			// We won't stretch it to be *smaller* than its natural size if it's already too big,
+			// unless we strictly want to clip.
+			// However, StretchBox just overrides AdvanceRect.
+			// If we set StretchBox width to availableWidth, we effectively clip/overflow depending on implementation.
 		}
-		l.Push(b, a)
+
+		sb := &StretchBox{
+			Box:   b,
+			Width: availableWidth,
+		}
+		l.Push(sb, availableWidth)
 		done = true
 		return done, nil
+	case *ImageBox:
+		irdx := a.Ceil()
+		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
+		cdx := sf.container.Dx()
+		if irdx+szdx >= cdx {
+			sf.boxer.Push(b)
+			done = true
+			return done, nil
+		}
 	default:
 		// Check total width (Fixed Int26_6 addition then Ceil) against Container width (Int)
 		// irdx (Integers) is not precise enough for strict accumulation
@@ -329,15 +354,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 				done = true
 				return done, nil
 			}
-		}
-	case *ImageBox:
-		irdx := a.Ceil()
-		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
-		cdx := sf.container.Dx()
-		if irdx+szdx >= cdx {
-			sf.boxer.Push(b)
-			done = true
-			return done, nil
 		}
 	}
 	l.Push(b, a)
