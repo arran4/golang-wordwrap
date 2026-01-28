@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/png"
 	"log"
@@ -112,83 +113,60 @@ func SampleGameMenu() error {
 	// Dark background
 	draw.Draw(i, i.Bounds(), image.NewUniform(image.Black), i.Bounds().Min, draw.Over)
 
-	// Font setup
-	grf, err := getFontFace("goregular", 24, 75)
+	grf, err := getFontFace("goregular", 24, 72)
 	if err != nil {
 		return fmt.Errorf("Error opening font: %w", err)
 	}
-	drawer := &font.Drawer{
-		Src:  image.NewUniform(image.White),
-		Face: grf,
+
+	// Helper to create fixed rect for padding/margin (Left, Top, Right, Bottom)
+	rect := func(l, t, r, b int) fixed.Rectangle26_6 {
+		return fixed.Rectangle26_6{
+			Min: fixed.P(l, t),
+			Max: fixed.P(r, b),
+		}
 	}
 
-	// Helper to create a menu item line
-	menuItem := func(text string, highlighted bool) wordwrap.Box {
-		// Basic text box
-		var b wordwrap.Box
+	// Helper to create menu items
+	menuItem := func(text string, highlight bool) wordwrap.Box {
+		var txtColor color.Color = image.White
+		var borderColor color.Color = color.RGBA{100, 100, 100, 255} // Grey
 
-		if highlighted {
-			// Highlighted: Black text
-			highlightDrawer := &font.Drawer{
-				Src:  image.NewUniform(image.Black),
-				Face: grf,
-			}
-			tb, _ := wordwrap.NewSimpleTextBox(highlightDrawer, text)
-			b = tb
-		} else {
-			// Normal: White text
-			tb, _ := wordwrap.NewSimpleTextBox(drawer, text)
-			b = tb
+		if highlight {
+			txtColor = color.RGBA{255, 255, 0, 255} // Yellow for highlight
+			borderColor = image.White
 		}
 
-		// 1. Text Padding
-		textPadding := fixed.R(20, 10, 20, 10)
-		b = wordwrap.NewDecorationBox(b, textPadding, fixed.R(0,0,0,0), nil, wordwrap.BgPositioningZeroed)
-
-		// 2. Background (Inner)
-		bgColor := image.NewUniform(image.Black)
-		if highlighted {
-			bgColor = image.NewUniform(image.White)
-		}
-		b = &wordwrap.BackgroundBox{
-			Box:        b,
-			Background: bgColor,
+		itemDrawer := &font.Drawer{
+			Src:  image.NewUniform(txtColor),
+			Face: grf,
 		}
 
-		// 3. Border Thickness (via Padding) + Border Color (via Background)
-		// Border Thickness: 4px
-		borderThickness := fixed.R(4, 4, 4, 4)
+		stb, _ := wordwrap.NewSimpleTextBox(itemDrawer, text)
+		var b wordwrap.Box = stb
 
-		// Border Color: Dark Grey for normal, Gold for highlighted?
-		// Keeping simple: White border for all
-		borderColor := image.NewUniform(image.White)
+		// 1. Padding + Background (The "Box" itself, black background)
+		b = wordwrap.NewDecorationBox(b, rect(20, 10, 20, 10), fixed.Rectangle26_6{}, image.NewUniform(image.Black), wordwrap.BgPositioningZeroed)
 
-		// To make the border visible, we wrap the current box (which is content+bg)
-		// in a DecorationBox that adds padding (the border thickness),
-		// and then wrap THAT in a BackgroundBox that fills that padding with the border color.
+		// 2. Border
+		b = wordwrap.NewDecorationBox(b, rect(2, 2, 2, 2), fixed.Rectangle26_6{}, image.NewUniform(borderColor), wordwrap.BgPositioningZeroed)
 
-		// Add padding for border thickness
-		b = wordwrap.NewDecorationBox(b, borderThickness, fixed.R(0,0,0,0), nil, wordwrap.BgPositioningZeroed)
+		// 3. Margin (spacing between items)
+		b = wordwrap.NewDecorationBox(b, fixed.Rectangle26_6{}, rect(0, 5, 0, 5), nil, wordwrap.BgPositioningZeroed)
 
-		// Add background for border color
-		b = &wordwrap.BackgroundBox{
-			Box: b,
-			Background: borderColor,
-		}
-
-		// 4. Outer Margin (spacing between items)
-		margin := fixed.R(0, 10, 0, 10)
-		b = wordwrap.NewDecorationBox(b, fixed.R(0,0,0,0), margin, nil, wordwrap.BgPositioningZeroed)
-
-		// 5. Alignment and Fill Line
+		// 4. Alignment
 		b = &wordwrap.AlignedBox{
 			Box: b,
 			Alignment: wordwrap.AlignMiddle,
 		}
 
-		// Wrap in FillLineBox to consume the line (forcing new line behavior)
+		// 5. FillLineBox
 		flb := wordwrap.NewFillLineBox(b, wordwrap.FillEntireLine)
 		return flb
+	}
+
+	drawer := &font.Drawer{
+		Src:  image.NewUniform(image.White),
+		Face: grf,
 	}
 
 	boxes := []wordwrap.Box{
