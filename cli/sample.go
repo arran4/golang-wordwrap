@@ -12,6 +12,7 @@ import (
 	"github.com/arran4/golang-wordwrap"
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 //go:embed "chevron.png"
@@ -122,33 +123,93 @@ func SampleGameMenu() error {
 	}
 
 	// Helper to create a menu item line
-	menuItem := func(text string) wordwrap.Box {
+	menuItem := func(text string, highlighted bool) wordwrap.Box {
 		// Basic text box
-		tb, _ := wordwrap.NewSimpleTextBox(drawer, text)
-		// Wrap in AlignedBox for centering (using AlignMiddle or AlignBaseline + width tricks, but AlignedBox mostly affects vertical alignment in a line)
-		// Actually, to center text horizontally in a line that consumes the full width, we rely on the line logic or a wrapper.
-		// But here we are constructing boxes manually.
-		// If we use HorizontalCenterLines option on the folder, it should center the content of the line.
-		// FillLineBox ensures the content takes a whole line.
-		return wordwrap.NewFillLineBox(tb, wordwrap.FillEntireLine)
+		var b wordwrap.Box
+
+		if highlighted {
+			// Highlighted: Black text
+			highlightDrawer := &font.Drawer{
+				Src:  image.NewUniform(image.Black),
+				Face: grf,
+			}
+			tb, _ := wordwrap.NewSimpleTextBox(highlightDrawer, text)
+			b = tb
+		} else {
+			// Normal: White text
+			tb, _ := wordwrap.NewSimpleTextBox(drawer, text)
+			b = tb
+		}
+
+		// 1. Text Padding
+		textPadding := fixed.R(20, 10, 20, 10)
+		b = wordwrap.NewDecorationBox(b, textPadding, fixed.R(0,0,0,0), nil, wordwrap.BgPositioningZeroed)
+
+		// 2. Background (Inner)
+		bgColor := image.NewUniform(image.Black)
+		if highlighted {
+			bgColor = image.NewUniform(image.White)
+		}
+		b = &wordwrap.BackgroundBox{
+			Box:        b,
+			Background: bgColor,
+		}
+
+		// 3. Border Thickness (via Padding) + Border Color (via Background)
+		// Border Thickness: 4px
+		borderThickness := fixed.R(4, 4, 4, 4)
+
+		// Border Color: Dark Grey for normal, Gold for highlighted?
+		// Keeping simple: White border for all
+		borderColor := image.NewUniform(image.White)
+
+		// To make the border visible, we wrap the current box (which is content+bg)
+		// in a DecorationBox that adds padding (the border thickness),
+		// and then wrap THAT in a BackgroundBox that fills that padding with the border color.
+
+		// Add padding for border thickness
+		b = wordwrap.NewDecorationBox(b, borderThickness, fixed.R(0,0,0,0), nil, wordwrap.BgPositioningZeroed)
+
+		// Add background for border color
+		b = &wordwrap.BackgroundBox{
+			Box: b,
+			Background: borderColor,
+		}
+
+		// 4. Outer Margin (spacing between items)
+		margin := fixed.R(0, 10, 0, 10)
+		b = wordwrap.NewDecorationBox(b, fixed.R(0,0,0,0), margin, nil, wordwrap.BgPositioningZeroed)
+
+		// 5. Alignment and Fill Line
+		b = &wordwrap.AlignedBox{
+			Box: b,
+			Alignment: wordwrap.AlignMiddle,
+		}
+
+		// Wrap in FillLineBox to consume the line (forcing new line behavior)
+		flb := wordwrap.NewFillLineBox(b, wordwrap.FillEntireLine)
+		return flb
 	}
 
 	boxes := []wordwrap.Box{
 		// Title manually
 		wordwrap.NewFillLineBox(
-			func() wordwrap.Box {
-				b, _ := wordwrap.NewSimpleTextBox(drawer, "GAME MENU")
-				return b
-			}(),
+			&wordwrap.AlignedBox{
+				Box: func() wordwrap.Box {
+					b, _ := wordwrap.NewSimpleTextBox(drawer, "GAME MENU")
+					return b
+				}(),
+				Alignment: wordwrap.AlignMiddle,
+			},
 			wordwrap.FillEntireLine,
 		),
 		// Spacing - Image box with height
 		wordwrap.NewFillLineBox(wordwrap.NewImageBox(image.NewRGBA(image.Rect(0, 0, 1, 50))), wordwrap.FillEntireLine), // Spacer
 
-		menuItem("NEW GAME"),
-		menuItem("LOAD GAME"),
-		menuItem("OPTIONS"),
-		menuItem("EXIT"),
+		menuItem("NEW GAME", true), // Highlighted
+		menuItem("LOAD GAME", false),
+		menuItem("OPTIONS", false),
+		menuItem("EXIT", false),
 	}
 
 	// Manual Boxer using refinedBoxer struct
@@ -178,7 +239,9 @@ func SampleGameMenu() error {
 			subI := i.SubImage(r).(wordwrap.Image)
 			// DrawLine expects an Image interface which typically includes SubImage.
 			// NewRGBA implements Image.
-			line.DrawLine(subI)
+			if err := line.DrawLine(subI); err != nil {
+				return fmt.Errorf("draw line error: %w", err)
+			}
 		}
 		y += line.Size().Dy()
 	}
