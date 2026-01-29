@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/draw"
 
+	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -69,6 +70,18 @@ func (db *DecorationBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 
 	yOffset := db.Padding.Min.Y + db.Margin.Min.Y
 	db.Box.DrawBox(innerImg, y-yOffset, dc)
+}
+
+func (db *DecorationBox) AdvanceRect() fixed.Int26_6 {
+	return db.Box.AdvanceRect() + db.Padding.Min.X + db.Padding.Max.X + db.Margin.Min.X + db.Margin.Max.X
+}
+
+func (db *DecorationBox) MetricsRect() font.Metrics {
+	m := db.Box.MetricsRect()
+	m.Ascent += db.Padding.Min.Y + db.Margin.Min.Y
+	m.Descent += db.Padding.Max.Y + db.Margin.Max.Y
+	m.Height = m.Ascent + m.Descent
+	return m
 }
 
 func (db *DecorationBox) MinSize() (fixed.Int26_6, fixed.Int26_6) {
