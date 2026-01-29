@@ -118,6 +118,16 @@ func SampleGameMenu() error {
 		return fmt.Errorf("Error opening font: %w", err)
 	}
 
+	// Larger font for title
+	titleGrf, err := getFontFace("goregular", 36, 72)
+	if err != nil {
+		return fmt.Errorf("Error opening title font: %w", err)
+	}
+	titleDrawer := &font.Drawer{
+		Src:  image.NewUniform(image.White),
+		Face: titleGrf,
+	}
+
 	// Helper to create fixed rect for padding/margin (Left, Top, Right, Bottom)
 	rect := func(l, t, r, b int) fixed.Rectangle26_6 {
 		return fixed.Rectangle26_6{
@@ -170,17 +180,15 @@ func SampleGameMenu() error {
 	}
 
 	boxes := []wordwrap.Box{
-		// Title manually
-		wordwrap.NewFillLineBox(
-			&wordwrap.AlignedBox{
-				Box: func() wordwrap.Box {
-					b, _ := wordwrap.NewSimpleTextBox(drawer, "GAME MENU")
-					return b
-				}(),
-				Alignment: wordwrap.AlignMiddle,
-			},
-			wordwrap.FillEntireLine,
-		),
+		// Title manually. Not using FillLineBox so HorizontalCenterLines centers the box itself.
+		&wordwrap.AlignedBox{
+			Box: func() wordwrap.Box {
+				b, _ := wordwrap.NewSimpleTextBox(titleDrawer, "Game Menu")
+				return b
+			}(),
+			Alignment: wordwrap.AlignMiddle,
+		},
+
 		// Spacing - Image box with height
 		wordwrap.NewFillLineBox(wordwrap.NewImageBox(image.NewRGBA(image.Rect(0, 0, 1, 50))), wordwrap.FillEntireLine), // Spacer
 
