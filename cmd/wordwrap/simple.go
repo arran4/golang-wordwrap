@@ -9,25 +9,28 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
 	"github.com/arran4/golang-wordwrap/cli"
+	"github.com/arran4/golang-wordwrap/cmd"
 )
 
 var _ Cmd = (*Simple)(nil)
 
 type Simple struct {
 	*RootCmd
-	Flags       *flag.FlagSet
-	width       int
-	height      int
-	dpiStr      string
-	fontname    string
-	fontsizeStr string
-	textsource  string
-	outfilename string
-	boxline     bool
-	boxbox      bool
-	yoverflow   int
-	SubCommands map[string]Cmd
+	Flags         *flag.FlagSet
+	width         int
+	height        int
+	dpiStr        string
+	fontname      string
+	fontsizeStr   string
+	textsource    string
+	outfilename   string
+	boxline       bool
+	boxbox        bool
+	yoverflow     int
+	SubCommands   map[string]Cmd
+	CommandAction func(c *Simple) error
 }
 
 type UsageDataSimple struct {
@@ -60,7 +63,7 @@ func (c *Simple) Execute(args []string) error {
 		if arg == "--" {
 			break
 		}
-		if strings.HasPrefix(arg, "-") {
+		if strings.HasPrefix(arg, "-") && arg != "-" {
 			name := arg
 			value := ""
 			hasValue := false
@@ -203,8 +206,12 @@ func (c *Simple) Execute(args []string) error {
 		}
 	}
 
-	if err := cli.SimpleWrapToImage(c.width, c.height, c.dpiStr, c.fontname, c.fontsizeStr, c.textsource, c.outfilename, c.boxline, c.boxbox, c.yoverflow); err != nil {
-		return fmt.Errorf("simple failed: %w", err)
+	if c.CommandAction != nil {
+		if err := c.CommandAction(c); err != nil {
+			return fmt.Errorf("simple failed: %w", err)
+		}
+	} else {
+		c.Usage()
 	}
 
 	return nil
@@ -238,6 +245,23 @@ func (c *RootCmd) NewSimple() *Simple {
 
 	set.IntVar(&v.yoverflow, "yoverflow", 0, "Y Overflow mode")
 	set.Usage = v.Usage
+
+	v.CommandAction = func(c *Simple) error {
+
+		err := cli.SimpleWrapToImage(c.width, c.height, c.dpiStr, c.fontname, c.fontsizeStr, c.textsource, c.outfilename, c.boxline, c.boxbox, c.yoverflow)
+		if err != nil {
+			if errors.Is(err, cmd.ErrPrintHelp) {
+				c.Usage()
+				return nil
+			}
+			if errors.Is(err, cmd.ErrHelp) {
+				fmt.Fprintf(os.Stderr, "Use '%s help' for more information.\n", os.Args[0])
+				return nil
+			}
+			return fmt.Errorf("simple failed: %w", err)
+		}
+		return nil
+	}
 
 	v.SubCommands["help"] = &InternalCommand{
 		Exec: func(args []string) error {
