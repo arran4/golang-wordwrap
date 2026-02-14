@@ -9,18 +9,21 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
 	"github.com/arran4/golang-wordwrap/cli"
+	"github.com/arran4/golang-wordwrap/cmd"
 )
 
 var _ Cmd = (*Rich)(nil)
 
 type Rich struct {
 	*RootCmd
-	Flags       *flag.FlagSet
-	width       int
-	height      int
-	out         string
-	SubCommands map[string]Cmd
+	Flags         *flag.FlagSet
+	width         int
+	height        int
+	out           string
+	SubCommands   map[string]Cmd
+	CommandAction func(c *Rich) error
 }
 
 type UsageDataRich struct {
@@ -53,7 +56,7 @@ func (c *Rich) Execute(args []string) error {
 		if arg == "--" {
 			break
 		}
-		if strings.HasPrefix(arg, "-") {
+		if strings.HasPrefix(arg, "-") && arg != "-" {
 			name := arg
 			value := ""
 			hasValue := false
@@ -115,8 +118,12 @@ func (c *Rich) Execute(args []string) error {
 		}
 	}
 
-	if err := cli.RichWrapToImage(c.width, c.height, c.out); err != nil {
-		return fmt.Errorf("rich failed: %w", err)
+	if c.CommandAction != nil {
+		if err := c.CommandAction(c); err != nil {
+			return fmt.Errorf("rich failed: %w", err)
+		}
+	} else {
+		c.Usage()
 	}
 
 	return nil
@@ -136,6 +143,23 @@ func (c *RootCmd) NewRich() *Rich {
 
 	set.StringVar(&v.out, "out", "rich_output.png", "Output filename")
 	set.Usage = v.Usage
+
+	v.CommandAction = func(c *Rich) error {
+
+		err := cli.RichWrapToImage(c.width, c.height, c.out)
+		if err != nil {
+			if errors.Is(err, cmd.ErrPrintHelp) {
+				c.Usage()
+				return nil
+			}
+			if errors.Is(err, cmd.ErrHelp) {
+				fmt.Fprintf(os.Stderr, "Use '%s help' for more information.\n", os.Args[0])
+				return nil
+			}
+			return fmt.Errorf("rich failed: %w", err)
+		}
+		return nil
+	}
 
 	v.SubCommands["help"] = &InternalCommand{
 		Exec: func(args []string) error {

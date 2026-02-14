@@ -2,7 +2,7 @@
 
 package main
 
-//go:generate sh -c "if [ -x \"$(command -v gosubc)\" ]; then gosubc generate .; else go run github.com/arran4/go-subcommand/cmd/gosubc generate .; fi"
+//go:generate sh -c "command -v gosubc >/dev/null 2>&1 && gosubc generate || go run github.com/arran4/go-subcommand/cmd/gosubc generate"
 
 import (
 	"fmt"
