@@ -72,14 +72,27 @@ func (l *SimpleLine) PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) (
 	ar := box.AdvanceRect()
 	lastWs := false
 	c := 0
+	var popped []Box
 	for r.Dx() < (l.size.Max.X - l.size.Min.X + ar).Ceil() {
 		b := l.Pop()
 		if b == nil {
+			if len(popped) > 0 {
+				for i, j := 0, len(popped)-1; i < j; i, j = i+1, j-1 {
+					popped[i], popped[j] = popped[j], popped[i]
+				}
+				sf.boxer.Unshift(popped...)
+			}
 			return 0, fmt.Errorf("no more boxes")
 		}
 		c++
-		sf.boxer.Unshift(b)
-		lastWs = b.Whitespace()
+		popped = append(popped, b)
+	}
+	if len(popped) > 0 {
+		for i, j := 0, len(popped)-1; i < j; i, j = i+1, j-1 {
+			popped[i], popped[j] = popped[j], popped[i]
+		}
+		sf.boxer.Unshift(popped...)
+		lastWs = popped[0].Whitespace()
 	}
 	switch box := box.(type) {
 	case *PageBreakBox:
