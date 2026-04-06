@@ -22,7 +22,7 @@ func GenerateSample() error {
 	chevronImage, _ := png.Decode(bytes.NewReader(chevronImageBytes))
 	grf, err := getFontFace("goregular", 16, 180)
 	if err != nil {
-		return fmt.Errorf("Error opening font %s: %w", "goregular", err)
+		return fmt.Errorf("error opening font %s: %w", "goregular", err)
 	}
 	fontDrawer := &font.Drawer{
 		Src:  image.NewUniform(image.Black),
@@ -69,22 +69,22 @@ func SampleType1(width, height int, fontsize, dpi float64, fontname, textsource,
 	draw.Draw(i, i.Bounds(), image.NewUniform(image.White), i.Bounds().Min, draw.Over)
 	grf, err := getFontFace(fontname, fontsize, dpi)
 	if err != nil {
-		return fmt.Errorf("Error opening font %s: %w", fontname, err)
+		return fmt.Errorf("error opening font %s: %w", fontname, err)
 	}
 	text, err := GetText(textsource)
 	if err != nil {
-		return fmt.Errorf("Text fetch error: %w", err)
+		return fmt.Errorf("text fetch error: %w", err)
 	}
 	sw := wordwrap.NewSimpleWrapper([]*wordwrap.Content{wordwrap.NewContent(text)}, grf, opts...)
 	lines, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
-		return fmt.Errorf("Text wrap error: %w", err)
+		return fmt.Errorf("text wrap error: %w", err)
 	}
 	if err := sw.RenderLines(i, lines, i.Bounds().Min); err != nil {
-		return fmt.Errorf("Text draw error: %w", err)
+		return fmt.Errorf("text draw error: %w", err)
 	}
 	if err := SaveFile(i, outfilename); err != nil {
-		return fmt.Errorf("Error with saving file: %w", err)
+		return fmt.Errorf("error with saving file: %w", err)
 	}
 	log.Printf("Done as %s", outfilename)
 	return nil
