@@ -329,3 +329,27 @@ func TestSimpleBoxer_Reset(t *testing.T) {
 		t.Errorf("Expected 'Hello', got '%s'", sb.Contents)
 	}
 }
+
+func TestImageBoxMetricsInSimpleBoxer(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 30, 30))
+	content := NewImageContent(img)
+
+	boxer := NewSimpleBoxer([]*Content{content}, nil)
+	b, _, err := boxer.Next()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	ib, ok := b.(*ImageBox)
+	if !ok {
+		t.Fatalf("Expected *ImageBox, got %T", b)
+	}
+
+	m := ib.MetricsRect()
+	if m.Ascent.Ceil() != 30 {
+		t.Errorf("Expected ascent to be 30, got %d", m.Ascent.Ceil())
+	}
+	if m.Height.Ceil() != 30 {
+		t.Errorf("Expected height to be 30, got %d", m.Height.Ceil())
+	}
+}

@@ -372,15 +372,15 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 			sb.contentIndex++
 			sb.n = 0
 			var b Box
-			b = &ImageBox{
+
+			ib := &ImageBox{
 				I: currentContent.image,
 			}
 			if currentContent.imageScale != 0 {
-				b = &ImageBox{
-					I:     currentContent.image,
-					Scale: currentContent.imageScale,
-				}
+				ib.Scale = currentContent.imageScale
 			}
+			ib.CalculateMetrics()
+			b = ib
 			if currentContent.style != nil {
 				if currentContent.style.BackgroundColor != nil {
 					b = &BackgroundBox{
