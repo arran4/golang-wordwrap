@@ -1174,3 +1174,54 @@ func (ab *AlignedBox) turnOnBox() {
 
 // Interface enforcement
 var _ Box = (*AlignedBox)(nil)
+
+// FillLineMode determines how the box consumes the line
+type FillLineMode int
+
+const (
+	// FillRestOfLine consumes the rest of the current line
+	FillRestOfLine FillLineMode = iota
+	// FillEntireLine consumes the entire line (starts on new line, ends line)
+	FillEntireLine
+)
+
+// FillLineBox is a box that consumes the line
+type FillLineBox struct {
+	Box
+	Mode FillLineMode
+}
+
+// NewFillLineBox constructs a new FillLineBox
+func NewFillLineBox(b Box, mode FillLineMode) *FillLineBox {
+	return &FillLineBox{
+		Box:  b,
+		Mode: mode,
+	}
+}
+
+// DrawBox delegates to the inner box.
+func (flb *FillLineBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	flb.Box.DrawBox(i, y, dc)
+}
+
+// Ensure interface compliance
+var _ Box = (*FillLineBox)(nil)
+
+// StretchBox forces the inner box to have a specific AdvanceRect
+type StretchBox struct {
+	Box
+	Width fixed.Int26_6
+}
+
+// AdvanceRect returns the forced width
+func (sb *StretchBox) AdvanceRect() fixed.Int26_6 {
+	return sb.Width
+}
+
+// DrawBox delegates to the inner box
+func (sb *StretchBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	sb.Box.DrawBox(i, y, dc)
+}
+
+// Ensure interface compliance
+var _ Box = (*StretchBox)(nil)
