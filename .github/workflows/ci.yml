@@ -478,10 +478,9 @@ jobs:
       - name: Checkout the specific tag for manual workflow dispatch
         if: ${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'release-') }}
         run: |
+          set -euo pipefail
           git fetch --tags --force
-          git checkout tags/${{ needs.prepare-release-tag.outputs.release_tag || env.GORELEASER_CURRENT_TAG }} || true
-        env:
-          GORELEASER_CURRENT_TAG: ${{ inputs.release_version_override || 'undefined' }}
+          git checkout "tags/${{ needs.prepare-release-tag.outputs.release_tag }}"
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -496,8 +495,13 @@ jobs:
 
   prepare-next-version-pr:
     name: Prepare next development iteration PR
-    needs: [push-release-tag, prepare-release-tag]
-    if: ${{ github.event_name == 'workflow_dispatch' && (startsWith(inputs.mode, 'release-') || inputs.mode == 'release-test') }}
+    needs: [push-release-tag, prepare-release-tag, goreleaser]
+    if: |
+      always() &&
+      needs.prepare-release-tag.result == 'success' &&
+      needs.goreleaser.result == 'success' &&
+      github.event_name == 'workflow_dispatch' &&
+      (startsWith(inputs.mode, 'release-') || inputs.mode == 'release-test')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
