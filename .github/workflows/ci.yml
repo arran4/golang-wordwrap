@@ -435,27 +435,6 @@ jobs:
               git push origin --delete "$branch" || true
             done
 
-  goreleaser:
-    name: GoReleaser
-    needs: [route, discover, go-test]
-    if: ${{ needs.discover.outputs.has_go == 'true' && needs.discover.outputs.has_goreleaser == 'true' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   push-release-tag:
     name: Push release tag
     needs: [prepare-release-tag]
@@ -478,6 +457,42 @@ jobs:
           set -euo pipefail
           git tag -f "$TAG"
           git push -f origin "$TAG" || { sleep 2; git push -f origin "$TAG"; }
+
+  goreleaser:
+    name: GoReleaser
+    needs: [route, discover, go-test, push-release-tag, prepare-release-tag]
+    if: |
+      always() &&
+      needs.discover.outputs.has_go == 'true' &&
+      needs.discover.outputs.has_goreleaser == 'true' &&
+      needs.go-test.result == 'success' &&
+      (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+        (github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'release-') && needs.push-release-tag.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout the specific tag for manual workflow dispatch
+        if: ${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'release-') }}
+        run: |
+          git fetch --tags --force
+          git checkout tags/${{ needs.prepare-release-tag.outputs.release_tag || env.GORELEASER_CURRENT_TAG }} || true
+        env:
+          GORELEASER_CURRENT_TAG: ${{ inputs.release_version_override || 'undefined' }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   prepare-next-version-pr:
     name: Prepare next development iteration PR
