@@ -105,54 +105,54 @@ func TestSimpleFolder_ImageBox(t *testing.T) {
 }
 
 func TestSimpleFolder_ImageBox_PrecedingContent(t *testing.T) {
-    b1 := &ImageBox{
-        I: image.NewRGBA(image.Rect(0, 0, 50, 100)),
-        M: font.Metrics{Height: fixed.I(100)},
-    }
-    b2 := &ImageBox{
-        I: image.NewRGBA(image.Rect(0, 0, 60, 100)), // 50+60 = 110 > 100
-        M: font.Metrics{Height: fixed.I(100)},
-    }
-    boxer := &manualBoxer{boxes: []Box{b1, b2}}
-    folder := NewSimpleFolder(boxer, image.Rect(0, 0, 100, 100), nil)
+	b1 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 50, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	b2 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 60, 100)), // 50+60 = 110 > 100
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	boxer := &manualBoxer{boxes: []Box{b1, b2}}
+	folder := NewSimpleFolder(boxer, image.Rect(0, 0, 100, 100), nil)
 
-    // 1. Assert the first line contains only the 50px image.
-    line1, err := folder.Next(100)
-    if err != nil {
-        t.Fatalf("Unexpected error: %v", err)
-    }
-    l1 := line1.(*SimpleLine)
-    if len(l1.boxes) != 1 {
-        t.Fatalf("Expected 1 box in line 1, got %d", len(l1.boxes))
-    }
-    if l1.boxes[0] != b1 {
-        t.Fatalf("Expected first line to contain b1")
-    }
+	// 1. Assert the first line contains only the 50px image.
+	line1, err := folder.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	l1 := line1.(*SimpleLine)
+	if len(l1.boxes) != 1 {
+		t.Fatalf("Expected 1 box in line 1, got %d", len(l1.boxes))
+	}
+	if l1.boxes[0] != b1 {
+		t.Fatalf("Expected first line to contain b1")
+	}
 
-    // 2. Call folder.Next(...) again and assert the second line contains the 60px image.
-    line2, err := folder.Next(100)
-    if err != nil {
-        t.Fatalf("Unexpected error: %v", err)
-    }
-    l2 := line2.(*SimpleLine)
-    if len(l2.boxes) != 1 {
-        t.Fatalf("Expected 1 box in line 2, got %d", len(l2.boxes))
-    }
-    if l2.boxes[0] != b2 {
-        t.Fatalf("Expected second line to contain b2")
-    }
+	// 2. Call folder.Next(...) again and assert the second line contains the 60px image.
+	line2, err := folder.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	l2 := line2.(*SimpleLine)
+	if len(l2.boxes) != 1 {
+		t.Fatalf("Expected 1 box in line 2, got %d", len(l2.boxes))
+	}
+	if l2.boxes[0] != b2 {
+		t.Fatalf("Expected second line to contain b2")
+	}
 
-    // 3. Assert the boxer is then empty.
-    if len(boxer.boxes) != 0 {
-        t.Fatalf("Expected boxer to be empty, got %d", len(boxer.boxes))
-    }
+	// 3. Assert the boxer is then empty.
+	if len(boxer.boxes) != 0 {
+		t.Fatalf("Expected boxer to be empty, got %d", len(boxer.boxes))
+	}
 
-    // 4. Call folder.Next(...) once more and assert it returns nil.
-    line3, err := folder.Next(100)
-    if err != nil {
-        t.Fatalf("Unexpected error: %v", err)
-    }
-    if line3 != nil {
-        t.Fatalf("Expected nil line when boxer is empty, got %v", line3)
-    }
+	// 4. Call folder.Next(...) once more and assert it returns nil.
+	line3, err := folder.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if line3 != nil {
+		t.Fatalf("Expected nil line when boxer is empty, got %v", line3)
+	}
 }
