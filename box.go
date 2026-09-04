@@ -1220,13 +1220,12 @@ func (hab *HorizontalAlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfi
 		case AlignRight:
 			offset = allocatedWidth - naturalWidth
 		}
-		if offset > 0 {
-			subR := image.Rect(bounds.Min.X+offset, bounds.Min.Y, bounds.Max.X, bounds.Max.Y)
-			if !subR.Empty() {
-				subI := i.SubImage(subR).(Image)
-				hab.Box.DrawBox(subI, y, dc)
-				return
-			}
+
+		subR := image.Rect(bounds.Min.X+offset, bounds.Min.Y, bounds.Min.X+offset+naturalWidth, bounds.Max.Y)
+		if !subR.Empty() {
+			subI := i.SubImage(subR).(Image)
+			hab.Box.DrawBox(subI, y, dc)
+			return
 		}
 	}
 	hab.Box.DrawBox(i, y, dc)

@@ -5,10 +5,10 @@ import (
 	_ "embed"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/png"
 	"log"
-	"image/color"
 
 	"github.com/arran4/golang-wordwrap"
 	"github.com/arran4/golang-wordwrap/util"

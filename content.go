@@ -46,15 +46,15 @@ type Style struct {
 	Padding         fixed.Rectangle26_6
 	Margin          fixed.Rectangle26_6
 
-	Alignment       BaselineAlignment
+	Alignment           BaselineAlignment
 	HorizontalAlignment HorizontalAlignment
-	Effects         []BoxEffect
-	FixedBackground bool
-	BgPositioning   BackgroundPositioning
-	Border          fixed.Rectangle26_6
-	BorderImage     image.Image
-	Decorators      []func(Box) Box
-	MinSize         fixed.Point26_6
+	Effects             []BoxEffect
+	FixedBackground     bool
+	BgPositioning       BackgroundPositioning
+	Border              fixed.Rectangle26_6
+	BorderImage         image.Image
+	Decorators          []func(Box) Box
+	MinSize             fixed.Point26_6
 }
 
 // WithMinSize sets the minimum size of the content
