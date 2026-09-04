@@ -292,10 +292,10 @@ func (sf *SimpleFolder) Next(yspace int) (Line, error) {
 // NewLine constructs a new simple line. (Later to be a factory proxy)
 func (sf *SimpleFolder) NewLine() *SimpleLine {
 	return &SimpleLine{
-		boxes:      []Box{},
+		boxes:       []Box{},
 		boxAdvances: []fixed.Int26_6{},
-		size:       fixed.R(0, 0, 0, 0),
-		fontDrawer: sf.lastFontDrawer,
+		size:        fixed.R(0, 0, 0, 0),
+		fontDrawer:  sf.lastFontDrawer,
 	}
 }
 
@@ -307,10 +307,10 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		sf.lastFontDrawer = fontDrawer
 	}
 	a := b.AdvanceRect()
-	switch b.(type) {
+	switch bx := b.(type) {
 	case *FillLineBox:
-		bx := b.(*FillLineBox)
-		if bx.Mode == FillEntireLine {
+		switch bx.Mode {
+		case FillEntireLine:
 			if len(l.boxes) > 0 {
 				sf.boxer.Push(bx)
 				return true, nil
@@ -321,7 +321,7 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 			}
 			l.Push(bx, a)
 			return true, nil
-		} else if bx.Mode == FillRestOfLine {
+		case FillRestOfLine:
 			currentWidthFixed := l.size.Max.X - l.size.Min.X
 			remainingFixed := fixed.I(sf.container.Dx()) - currentWidthFixed
 			if bx.AdvanceRect() > remainingFixed && len(l.boxes) > 0 {
@@ -348,7 +348,7 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 					Box: b,
 				}
 				l.boxes = append(l.boxes, b)
-	l.boxAdvances = append(l.boxAdvances, a)
+				l.boxAdvances = append(l.boxAdvances, a)
 			} else if len(l.boxes) == 0 {
 				// If line is empty, we must add the box even if it overflows to prevent infinite loop/dropping.
 				// We do nothing here, falling through to l.Push(b, a) works.

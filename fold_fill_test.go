@@ -41,20 +41,20 @@ func (d *dummyBox) AdvanceRect() fixed.Int26_6 { return fixed.I(d.width) }
 func (d *dummyBox) MetricsRect() font.Metrics {
 	return font.Metrics{Height: fixed.I(d.height), Ascent: fixed.I(d.height)}
 }
-func (d *dummyBox) Whitespace() bool                                      { return false }
-func (d *dummyBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig)      {}
-func (d *dummyBox) FontDrawer() *font.Drawer                              { return nil }
-func (d *dummyBox) Len() int                                              { return 0 }
-func (d *dummyBox) TextValue() string                                     { return "" }
-func (d *dummyBox) MinSize() (fixed.Int26_6, fixed.Int26_6)               { return 0, 0 }
-func (d *dummyBox) MaxSize() (fixed.Int26_6, fixed.Int26_6)               { return 0, 0 }
+func (d *dummyBox) Whitespace() bool                                 { return false }
+func (d *dummyBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {}
+func (d *dummyBox) FontDrawer() *font.Drawer                         { return nil }
+func (d *dummyBox) Len() int                                         { return 0 }
+func (d *dummyBox) TextValue() string                                { return "" }
+func (d *dummyBox) MinSize() (fixed.Int26_6, fixed.Int26_6)          { return 0, 0 }
+func (d *dummyBox) MaxSize() (fixed.Int26_6, fixed.Int26_6)          { return 0, 0 }
 
 func TestFoldFillModes(t *testing.T) {
 	tests := []struct {
-		name       string
-		containerW int
-		boxes      []Box
-		expectedLines int
+		name           string
+		containerW     int
+		boxes          []Box
+		expectedLines  int
 		expectedWidths []int
 	}{
 		{
@@ -91,10 +91,10 @@ func TestFoldFillModes(t *testing.T) {
 			containerW: 100,
 			boxes: []Box{
 				&dummyBox{width: 30, height: 10},
-				&FillLineBox{Mode: FillRestOfLine, Box: &dummyBox{width: 80, height: 10}},
+				&FillLineBox{Mode: FillRestOfLine, Box: &dummyBox{width: 150, height: 10}},
 			},
 			expectedLines:  2,
-			expectedWidths: []int{30, 100},
+			expectedWidths: []int{30, 150},
 		},
 		{
 			name:       "5. oversized FillEntireLine",
@@ -166,7 +166,7 @@ func TestFillLineBoxDrawingGeometry(t *testing.T) {
 		t.Fatalf("Expected line, got nil")
 	}
 
-	line.setStats(0,0,0,0)
+	line.setStats(0, 0, 0, 0)
 
 	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
 
