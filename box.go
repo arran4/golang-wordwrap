@@ -975,7 +975,7 @@ func (ib *ImageBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 			srci = originalSrc
 		}()
 	}
-	draw.Draw(i, bounds.Add(image.Pt(0, (y - ib.M.Ascent).Ceil())), srci, srci.Bounds().Min, draw.Over)
+	draw.Draw(i, bounds.Add(image.Pt(0, (y-ib.M.Ascent).Ceil())), srci, srci.Bounds().Min, draw.Over)
 	if ib.boxBox {
 		DrawBox(i, bounds, dc)
 	}
@@ -1174,3 +1174,90 @@ func (ab *AlignedBox) turnOnBox() {
 
 // Interface enforcement
 var _ Box = (*AlignedBox)(nil)
+
+// FillMode represents the mode for filling remaining line width
+type FillMode int
+
+const (
+	// FillRestOfLine consumes all remaining width on the line.
+	FillRestOfLine FillMode = iota
+	// FillEntireLine allocates the full container width, beginning on an empty line.
+	FillEntireLine
+)
+
+// FillLineBox represents a box that expands to fill space on a line.
+type FillLineBox struct {
+	Mode FillMode
+	Box  Box
+}
+
+// AdvanceRect returns the width of the content.
+func (flb *FillLineBox) AdvanceRect() fixed.Int26_6 {
+	if flb.Box != nil {
+		return flb.Box.AdvanceRect()
+	}
+	return 0
+}
+
+// MetricsRect returns the font metrics of the content.
+func (flb *FillLineBox) MetricsRect() font.Metrics {
+	if flb.Box != nil {
+		return flb.Box.MetricsRect()
+	}
+	return font.Metrics{}
+}
+
+// Whitespace returns true if the content is whitespace.
+func (flb *FillLineBox) Whitespace() bool {
+	if flb.Box != nil {
+		return flb.Box.Whitespace()
+	}
+	return false
+}
+
+// DrawBox renders the content into the given image at the specified Y offset.
+func (flb *FillLineBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	if flb.Box != nil {
+		flb.Box.DrawBox(i, y, dc)
+	}
+}
+
+// FontDrawer returns the font face used for this box.
+func (flb *FillLineBox) FontDrawer() *font.Drawer {
+	if flb.Box != nil {
+		return flb.Box.FontDrawer()
+	}
+	return nil
+}
+
+// Len returns the length of the content (e.g. rune count).
+func (flb *FillLineBox) Len() int {
+	if flb.Box != nil {
+		return flb.Box.Len()
+	}
+	return 0
+}
+
+// TextValue returns the text string content of the box.
+func (flb *FillLineBox) TextValue() string {
+	if flb.Box != nil {
+		return flb.Box.TextValue()
+	}
+	return ""
+}
+
+// MinSize returns the minimum required size for the box (width, height).
+func (flb *FillLineBox) MinSize() (fixed.Int26_6, fixed.Int26_6) {
+	if flb.Box != nil {
+		return flb.Box.MinSize()
+	}
+	return 0, 0
+}
+
+// MaxSize returns the maximum allowed size for the box (width, height).
+func (flb *FillLineBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
+	if flb.Box != nil {
+		return flb.Box.MaxSize()
+	}
+	return 0, 0
+}

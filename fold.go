@@ -36,6 +36,7 @@ type Folder interface {
 // SimpleLine is a simple implementation to prevent name space names later. Represents a line
 type SimpleLine struct {
 	boxes                  []Box
+	boxAdvances            []fixed.Int26_6
 	size                   fixed.Rectangle26_6
 	yoffset                fixed.Int26_6
 	boxLine                bool
@@ -123,6 +124,7 @@ func (l *SimpleLine) Push(b Box, a fixed.Int26_6) {
 		l.yoffset = yoffset
 	}
 	l.boxes = append(l.boxes, b)
+	l.boxAdvances = append(l.boxAdvances, a)
 }
 
 // Pop a box off of the end of a line. Ignores all height components that will require a recalculation, drops PageBreak
@@ -132,7 +134,8 @@ func (l *SimpleLine) Pop() Box {
 	}
 	b := l.boxes[len(l.boxes)-1]
 	l.boxes = l.boxes[:len(l.boxes)-1]
-	a := b.AdvanceRect()
+	a := l.boxAdvances[len(l.boxAdvances)-1]
+	l.boxAdvances = l.boxAdvances[:len(l.boxAdvances)-1]
 	l.size.Max.X -= a
 	for {
 		switch box := b.(type) {
@@ -182,7 +185,7 @@ func (l *SimpleLine) DrawLine(i Image, options ...DrawOption) error {
 	r.Max.Y = bounds.Max.Y
 	var fi = fixed.I(r.Min.X)
 	for bi, b := range l.boxes {
-		fi += b.AdvanceRect()
+		fi += l.boxAdvances[bi]
 		r.Max.X = fi.Round()
 		subImage := i.SubImage(r).(Image)
 		bb := b
@@ -289,9 +292,10 @@ func (sf *SimpleFolder) Next(yspace int) (Line, error) {
 // NewLine constructs a new simple line. (Later to be a factory proxy)
 func (sf *SimpleFolder) NewLine() *SimpleLine {
 	return &SimpleLine{
-		boxes:      []Box{},
-		size:       fixed.R(0, 0, 0, 0),
-		fontDrawer: sf.lastFontDrawer,
+		boxes:       []Box{},
+		boxAdvances: []fixed.Int26_6{},
+		size:        fixed.R(0, 0, 0, 0),
+		fontDrawer:  sf.lastFontDrawer,
 	}
 }
 
@@ -303,7 +307,34 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		sf.lastFontDrawer = fontDrawer
 	}
 	a := b.AdvanceRect()
-	switch b.(type) {
+	switch bx := b.(type) {
+	case *FillLineBox:
+		switch bx.Mode {
+		case FillEntireLine:
+			if len(l.boxes) > 0 {
+				sf.boxer.Push(bx)
+				return true, nil
+			}
+			a = fixed.I(sf.container.Dx())
+			if bx.AdvanceRect() > a {
+				a = bx.AdvanceRect()
+			}
+			l.Push(bx, a)
+			return true, nil
+		case FillRestOfLine:
+			currentWidthFixed := l.size.Max.X - l.size.Min.X
+			remainingFixed := fixed.I(sf.container.Dx()) - currentWidthFixed
+			if bx.AdvanceRect() > remainingFixed && len(l.boxes) > 0 {
+				sf.boxer.Push(bx)
+				return true, nil
+			}
+			a = remainingFixed
+			if bx.AdvanceRect() > a {
+				a = bx.AdvanceRect()
+			}
+			l.Push(bx, a)
+			return true, nil
+		}
 	case *LineBreakBox:
 		done = true
 	default:
@@ -317,6 +348,7 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 					Box: b,
 				}
 				l.boxes = append(l.boxes, b)
+				l.boxAdvances = append(l.boxAdvances, a)
 			} else if len(l.boxes) == 0 {
 				// If line is empty, we must add the box even if it overflows to prevent infinite loop/dropping.
 				// We do nothing here, falling through to l.Push(b, a) works.
