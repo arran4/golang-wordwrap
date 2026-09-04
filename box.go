@@ -351,6 +351,12 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 						Alignment: currentContent.style.Alignment,
 					}
 				}
+				if currentContent.style.HorizontalAlignment != AlignLeft {
+					b = &HorizontalAlignedBox{
+						Box:       b,
+						Alignment: currentContent.style.HorizontalAlignment,
+					}
+				}
 				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
 					bg := currentContent.style.BackgroundColor
 					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
@@ -399,6 +405,12 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 					b = &AlignedBox{
 						Box:       b,
 						Alignment: currentContent.style.Alignment,
+					}
+				}
+				if currentContent.style.HorizontalAlignment != AlignLeft {
+					b = &HorizontalAlignedBox{
+						Box:       b,
+						Alignment: currentContent.style.HorizontalAlignment,
 					}
 				}
 				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
@@ -487,6 +499,12 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 				b = &AlignedBox{
 					Box:       b,
 					Alignment: currentContent.style.Alignment,
+				}
+			}
+			if currentContent.style.HorizontalAlignment != AlignLeft {
+				b = &HorizontalAlignedBox{
+					Box:       b,
+					Alignment: currentContent.style.HorizontalAlignment,
 				}
 			}
 			if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
@@ -1174,6 +1192,54 @@ func (ab *AlignedBox) turnOnBox() {
 
 // Interface enforcement
 var _ Box = (*AlignedBox)(nil)
+
+// HorizontalAlignedBox wraps a box with horizontal alignment information
+type HorizontalAlignedBox struct {
+	Box
+	Alignment HorizontalAlignment
+}
+
+func (hab *HorizontalAlignedBox) MinSize() (fixed.Int26_6, fixed.Int26_6) {
+	return hab.Box.MinSize()
+}
+
+func (hab *HorizontalAlignedBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
+	return hab.Box.MaxSize()
+}
+
+func (hab *HorizontalAlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	bounds := i.Bounds()
+	allocatedWidth := bounds.Dx()
+	naturalWidth := hab.Box.AdvanceRect().Ceil()
+
+	if allocatedWidth > naturalWidth {
+		var offset int
+		switch hab.Alignment {
+		case AlignCenter:
+			offset = (allocatedWidth - naturalWidth) / 2
+		case AlignRight:
+			offset = allocatedWidth - naturalWidth
+		}
+		if offset > 0 {
+			subR := image.Rect(bounds.Min.X+offset, bounds.Min.Y, bounds.Max.X, bounds.Max.Y)
+			if !subR.Empty() {
+				subI := i.SubImage(subR).(Image)
+				hab.Box.DrawBox(subI, y, dc)
+				return
+			}
+		}
+	}
+	hab.Box.DrawBox(i, y, dc)
+}
+
+func (hab *HorizontalAlignedBox) turnOnBox() {
+	if b, ok := hab.Box.(interface{ turnOnBox() }); ok {
+		b.turnOnBox()
+	}
+}
+
+// Interface enforcement
+var _ Box = (*HorizontalAlignedBox)(nil)
 
 // FillMode represents the mode for filling remaining line width
 type FillMode int
