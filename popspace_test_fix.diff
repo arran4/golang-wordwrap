@@ -1,0 +1,20 @@
+--- fold_popspacefor_test.go	2023-10-10 10:00:00.000000000 -0400
++++ fold_popspacefor_test.go	2023-10-10 10:00:00.000000000 -0400
+@@ -102,7 +102,8 @@
+		line.Push(wsBox, fixed.I(10))
+
+		containerRect := image.Rect(0, 0, 80, 100)
+-		targetBox := NewPageBreak(newBox(75, false, "PB"))
++		targetBox := NewPageBreak(newBox(65, false, "PB"))
+
+		c, err := line.PopSpaceFor(folder, containerRect, targetBox)
+		if err != nil {
+@@ -112,7 +113,8 @@
+			t.Fatalf("expected c=0, got %d", c)
+		}
+
+-		if targetBox.ContainerBox == nil || targetBox.ContainerBox.TextValue() != "WS" {
++		pbTargetBox := targetBox.(*PageBreakBox)
++		if pbTargetBox.ContainerBox == nil || pbTargetBox.ContainerBox.TextValue() != "WS" {
+			t.Fatalf("expected ContainerBox to be WS")
+		}
