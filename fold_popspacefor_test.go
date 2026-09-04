@@ -105,21 +105,8 @@ func TestPopSpaceFor(t *testing.T) {
 		line.Push(wsBox, fixed.I(10))
 
 		containerRect := image.Rect(0, 0, 80, 100)
-		targetBox := NewPageBreak(newBox(75, false, "PB"))
+		targetBox := NewPageBreak(newBox(65, false, "PB"))
 
-		// PopSpaceFor will pop WS and A if we don't have enough space.
-		// width=20, target width=75. 20+75=95 > 80.
-		// pop WS(10), size=10, 10+75=85 > 80.
-		// pop A(10), size=0, 0+75=75 <= 80.
-
-		// To just pop WS, let's make target width 65.
-		// width=20, target=65. 20+65=85 > 80.
-		// pop WS(10), size=10, 10+65=75 <= 80.
-		// c is 1. lastWs is true.
-		// switch Box case *PageBreakBox: if lastWs { c--; box.ContainerBox = sf.boxer.Shift() }
-		// so c becomes 0.
-
-		targetBox = NewPageBreak(newBox(65, false, "PB"))
 		c, err := line.PopSpaceFor(folder, containerRect, targetBox)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -156,27 +143,33 @@ func (m *mockBox) Len() int { return len(m.text) }
 func (m *mockBox) TextValue() string { return m.text }
 
 func BenchmarkPopSpaceFor(b *testing.B) {
-	// Let's create a line with many boxes
-	// And pop them all
 	boxer := &FixedWordWidthBoxer{}
-	folder := NewSimpleFolder(boxer, image.Rect(0, 0, 10, 10), nil)
+	folder := NewSimpleFolder(boxer, image.Rect(0, 0, 100, 10), nil)
 
-	b.ResetTimer()
 	b.ReportAllocs()
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
+		b.StopTimer()
 		line := folder.NewLine()
 		for j := 0; j < 1000; j++ {
 			line.Push(&mockBox{width: fixed.I(10), text: "A"}, fixed.I(10))
 		}
 
-		targetBox := &mockBox{width: fixed.I(1000 * 10 + 10), text: "Target"}
+		// Target width is 950. We need to clear space to make line size + target size <= container.
+		// Line currently has 1000 * 10 = 10000 width. Container is 1000.
+		// target width 950, so we need line width <= 50.
+		// So we will pop 995 boxes.
+		targetBox := &mockBox{width: fixed.I(950), text: "Target"}
+		b.StartTimer()
 
-		_, err := line.PopSpaceFor(folder, image.Rect(0, 0, 10, 10), targetBox)
-		if err == nil {
-			b.Fatalf("expected error, got nil")
+		_, err := line.PopSpaceFor(folder, image.Rect(0, 0, 1000, 10), targetBox)
+		if err != nil {
+			b.Fatalf("unexpected error: %v", err)
 		}
 
+		b.StopTimer()
 		boxer.queue = nil // clear queue for next iteration
+		b.StartTimer()
 	}
 }
