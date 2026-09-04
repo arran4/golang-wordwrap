@@ -2,6 +2,7 @@ package wordwrap
 
 import (
 	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
 	"image"
 	"testing"
@@ -157,4 +158,74 @@ func TestHorizontalAlignedIntegration(t *testing.T) {
 	if inner.drawn.Max.X != 100 {
 		t.Errorf("Inner box right edge should be at 100, got %v", inner.drawn.Max.X)
 	}
+}
+
+func TestHorizontalAlignedMultiWord(t *testing.T) {
+	// A small integration test using FillLineBox to stretch layout width over a multi-word row container
+	// Group the row text first, apply horizontal alignment at the grouped level, and apply FillEntireLine decorator
+
+	container := NewContainerContent([]*Content{
+		NewContent("New Game", WithFontColor(image.White)),
+	},
+		WithHorizontalAlignment(AlignCenter),
+		WithDecorators(func(b Box) Box {
+			return &FillLineBox{Mode: FillEntireLine, Box: b}
+		}),
+	)
+
+	// Build the boxer for the container
+	drawer := &font.Drawer{Face: basicfont.Face7x13} // we need a valid drawer to prevent panics in SimpleBoxer
+	boxer := NewSimpleBoxer([]*Content{container}, drawer)
+
+	// Verify it comes out as a FillLineBox
+	b, _, err := boxer.Next()
+	if err != nil {
+		t.Fatalf("Boxer next err: %v", err)
+	}
+
+	flb, ok := b.(*FillLineBox)
+	if !ok {
+		t.Fatalf("Expected top-level FillLineBox, got %T", b)
+	}
+
+	folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 1000, 100)}
+
+	line, err := folder.Next(0)
+	line.setStats(0, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("folder Next err: %v", err)
+	}
+
+	if line == nil {
+		t.Fatal("expected line")
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, 1000, 10))
+
+	var drawnRect image.Rectangle
+
+	options := []DrawOption{
+		BoxRecorder(func(box Box, min image.Point, max image.Point, stats *BoxPositionStats) {
+			if _, ok := box.(*FillLineBox); ok {
+				drawnRect = image.Rectangle{Min: min, Max: max}
+			}
+		}),
+	}
+
+	err = line.DrawLine(img, options...)
+	if err != nil {
+		t.Fatalf("DrawLine err: %v", err)
+	}
+
+	if drawnRect.Min.X != 0 || drawnRect.Max.X != 1000 {
+		t.Errorf("Line allocated bounds should be 0 to 1000, got %v", drawnRect)
+	}
+
+	// Verify that AdvanceRect is indeed preserved and not taking 1000
+
+	expectedAr := flb.AdvanceRect()
+	if expectedAr != flb.AdvanceRect() {
+		t.Errorf("AdvanceRect mutated")
+	}
+
 }

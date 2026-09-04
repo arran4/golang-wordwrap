@@ -116,15 +116,15 @@ func SampleGameMenu() error {
 			wordwrap.NewContent(text,
 				wordwrap.WithFont(grfItem),
 				wordwrap.WithFontColor(textColor),
-				wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
-				wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
-					return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
-				}),
 			),
 		},
 			wordwrap.WithBackgroundColor(bgColor),
 			wordwrap.WithPadding(fixed.R(0, 10<<6, 0, 10<<6)),
 			wordwrap.WithMargin(fixed.R(20<<6, 5<<6, 20<<6, 5<<6)),
+			wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
+			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
+				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
+			}),
 		)
 	}
 
@@ -133,12 +133,14 @@ func SampleGameMenu() error {
 			wordwrap.NewContent("Game Menu",
 				wordwrap.WithFont(grfHeading),
 				wordwrap.WithFontColor(image.White),
-				wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
-				wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
-					return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
-				}),
 			),
-		}, wordwrap.WithMargin(fixed.R(0, 20<<6, 0, 40<<6))),
+		},
+			wordwrap.WithMargin(fixed.R(0, 20<<6, 0, 40<<6)),
+			wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
+			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
+				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
+			}),
+		),
 		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("New Game", false)}),
 		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("Load Game", false)}),
 		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("Options", true)}),
