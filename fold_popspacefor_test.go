@@ -1,6 +1,7 @@
 package wordwrap
 
 import (
+	"fmt"
 	"image"
 	"testing"
 
@@ -132,15 +133,16 @@ type mockBox struct {
 	isWs  bool
 	text  string
 }
-func (m *mockBox) MinSize() (fixed.Int26_6, fixed.Int26_6) { return m.width, 0 }
-func (m *mockBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) { return m.width, 0 }
-func (m *mockBox) AdvanceRect() fixed.Int26_6 { return m.width }
-func (m *mockBox) MetricsRect() font.Metrics { return font.Metrics{} }
-func (m *mockBox) Whitespace() bool { return m.isWs }
+
+func (m *mockBox) MinSize() (fixed.Int26_6, fixed.Int26_6)          { return m.width, 0 }
+func (m *mockBox) MaxSize() (fixed.Int26_6, fixed.Int26_6)          { return m.width, 0 }
+func (m *mockBox) AdvanceRect() fixed.Int26_6                       { return m.width }
+func (m *mockBox) MetricsRect() font.Metrics                        { return font.Metrics{} }
+func (m *mockBox) Whitespace() bool                                 { return m.isWs }
 func (m *mockBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {}
-func (m *mockBox) FontDrawer() *font.Drawer { return nil }
-func (m *mockBox) Len() int { return len(m.text) }
-func (m *mockBox) TextValue() string { return m.text }
+func (m *mockBox) FontDrawer() *font.Drawer                         { return nil }
+func (m *mockBox) Len() int                                         { return len(m.text) }
+func (m *mockBox) TextValue() string                                { return m.text }
 
 func BenchmarkPopSpaceFor(b *testing.B) {
 	boxer := &FixedWordWidthBoxer{}
@@ -171,5 +173,120 @@ func BenchmarkPopSpaceFor(b *testing.B) {
 		b.StopTimer()
 		boxer.queue = nil // clear queue for next iteration
 		b.StartTimer()
+	}
+}
+
+// The baseline algorithm from previous PopSpaceFor, encapsulated here to verify parity
+func popSpaceForBaseline(l *SimpleLine, sf *SimpleFolder, r image.Rectangle, box Box) (int, error) {
+	ar := box.AdvanceRect()
+	lastWs := false
+	c := 0
+	for r.Dx() < (l.size.Max.X - l.size.Min.X + ar).Ceil() {
+		b := l.Pop()
+		if b == nil {
+			return 0, fmt.Errorf("no more boxes")
+		}
+		c++
+		sf.boxer.Unshift(b)
+		lastWs = b.Whitespace()
+	}
+	switch box := box.(type) {
+	case *PageBreakBox:
+		if lastWs {
+			c--
+			box.ContainerBox = sf.boxer.Shift()
+		}
+	}
+	l.Push(box, ar)
+	return c, nil
+}
+
+func TestPopSpaceForParity(t *testing.T) {
+	newBox := func(width int, isWs bool, text string) Box {
+		return &mockBox{width: fixed.I(width), isWs: isWs, text: text}
+	}
+
+	testCases := []struct {
+		name          string
+		containerRect image.Rectangle
+		targetBox     func() Box
+	}{
+		{"success displacement", image.Rect(0, 0, 80, 100), func() Box { return newBox(70, false, "Target") }},
+		{"error displacement", image.Rect(0, 0, 80, 100), func() Box { return newBox(90, false, "Target") }},
+		{"pagebreak whitespace tracking", image.Rect(0, 0, 80, 100), func() Box { return NewPageBreak(newBox(65, false, "PB")) }},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Setup for Baseline
+			boxerBase := &FixedWordWidthBoxer{}
+			folderBase := NewSimpleFolder(boxerBase, image.Rect(0, 0, 100, 100), nil)
+			lineBase := folderBase.NewLine()
+			lineBase.Push(newBox(10, false, "A"), fixed.I(10))
+			lineBase.Push(newBox(10, true, "WS"), fixed.I(10))
+			lineBase.Push(newBox(10, false, "C"), fixed.I(10))
+			targetBase := tc.targetBox()
+
+			// Setup for Optimized
+			boxerOpt := &FixedWordWidthBoxer{}
+			folderOpt := NewSimpleFolder(boxerOpt, image.Rect(0, 0, 100, 100), nil)
+			lineOpt := folderOpt.NewLine()
+			lineOpt.Push(newBox(10, false, "A"), fixed.I(10))
+			lineOpt.Push(newBox(10, true, "WS"), fixed.I(10))
+			lineOpt.Push(newBox(10, false, "C"), fixed.I(10))
+			targetOpt := tc.targetBox()
+
+			// Execute Baseline
+			cBase, errBase := popSpaceForBaseline(lineBase, folderBase, tc.containerRect, targetBase)
+
+			// Execute Optimized
+			cOpt, errOpt := lineOpt.PopSpaceFor(folderOpt, tc.containerRect, targetOpt)
+
+			// Assertions
+			if (errBase != nil && errOpt == nil) || (errBase == nil && errOpt != nil) {
+				t.Fatalf("error parity mismatch: base=%v, opt=%v", errBase, errOpt)
+			}
+
+			if cBase != cOpt {
+				t.Fatalf("count parity mismatch: base=%d, opt=%d", cBase, cOpt)
+			}
+
+			if len(boxerBase.queue) != len(boxerOpt.queue) {
+				t.Fatalf("queue len mismatch: base=%d, opt=%d", len(boxerBase.queue), len(boxerOpt.queue))
+			}
+
+			for i, b := range boxerBase.queue {
+				if b.TextValue() != boxerOpt.queue[i].TextValue() {
+					t.Fatalf("queue parity mismatch at index %d: base=%s, opt=%s", i, b.TextValue(), boxerOpt.queue[i].TextValue())
+				}
+			}
+
+			if len(lineBase.boxes) != len(lineOpt.boxes) {
+				t.Fatalf("line boxes len mismatch: base=%d, opt=%d", len(lineBase.boxes), len(lineOpt.boxes))
+			}
+
+			for i, b := range lineBase.boxes {
+				if b.TextValue() != lineOpt.boxes[i].TextValue() {
+					t.Fatalf("line boxes parity mismatch at index %d: base=%s, opt=%s", i, b.TextValue(), lineOpt.boxes[i].TextValue())
+				}
+			}
+
+			if pbBase, ok := targetBase.(*PageBreakBox); ok {
+				pbOpt := targetOpt.(*PageBreakBox)
+
+				var cBaseText, cOptText string
+				if pbBase.ContainerBox != nil {
+					cBaseText = pbBase.ContainerBox.TextValue()
+				}
+				if pbOpt.ContainerBox != nil {
+					cOptText = pbOpt.ContainerBox.TextValue()
+				}
+
+				if cBaseText != cOptText {
+					t.Fatalf("PageBreakBox ContainerBox parity mismatch: base=%s, opt=%s", cBaseText, cOptText)
+				}
+			}
+		})
 	}
 }
