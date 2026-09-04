@@ -3,6 +3,7 @@ package wordwrap
 import (
 	"image"
 	"image/draw"
+	"golang.org/x/image/font"
 
 	"golang.org/x/image/math/fixed"
 )
@@ -84,4 +85,16 @@ func (db *DecorationBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 	}
 	return w + db.Padding.Max.X + db.Padding.Min.X + db.Margin.Max.X + db.Margin.Min.X,
 		h + db.Padding.Max.Y + db.Padding.Min.Y + db.Margin.Max.Y + db.Margin.Min.Y
+}
+
+func (db *DecorationBox) AdvanceRect() fixed.Int26_6 {
+	return db.Box.AdvanceRect() + db.Padding.Min.X + db.Padding.Max.X + db.Margin.Min.X + db.Margin.Max.X
+}
+
+func (db *DecorationBox) MetricsRect() font.Metrics {
+	m := db.Box.MetricsRect()
+	m.Ascent += db.Padding.Min.Y + db.Margin.Min.Y
+	m.Descent += db.Padding.Max.Y + db.Margin.Max.Y
+	m.Height += db.Padding.Min.Y + db.Padding.Max.Y + db.Margin.Min.Y + db.Margin.Max.Y
+	return m
 }
