@@ -141,10 +141,10 @@ func SampleGameMenu() error {
 				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
 			}),
 		),
-		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("New Game", false)}),
-		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("Load Game", false)}),
-		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("Options", true)}),
-		wordwrap.NewContainerContent([]*wordwrap.Content{menuItem("Quit", false)}),
+		menuItem("New Game", false),
+		menuItem("Load Game", false),
+		menuItem("Options", true),
+		menuItem("Quit", false),
 	}
 
 	sw := wordwrap.NewSimpleWrapper(content, grfItem)

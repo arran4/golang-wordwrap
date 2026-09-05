@@ -161,71 +161,87 @@ func TestHorizontalAlignedIntegration(t *testing.T) {
 }
 
 func TestHorizontalAlignedMultiWord(t *testing.T) {
-	// A small integration test using FillLineBox to stretch layout width over a multi-word row container
-	// Group the row text first, apply horizontal alignment at the grouped level, and apply FillEntireLine decorator
-
-	container := NewContainerContent([]*Content{
-		NewContent("New Game", WithFontColor(image.White)),
-	},
-		WithHorizontalAlignment(AlignCenter),
-		WithDecorators(func(b Box) Box {
-			return &FillLineBox{Mode: FillEntireLine, Box: b}
-		}),
-	)
-
-	// Build the boxer for the container
-	drawer := &font.Drawer{Face: basicfont.Face7x13} // we need a valid drawer to prevent panics in SimpleBoxer
-	boxer := NewSimpleBoxer([]*Content{container}, drawer)
-
-	// Verify it comes out as a FillLineBox
-	b, _, err := boxer.Next()
-	if err != nil {
-		t.Fatalf("Boxer next err: %v", err)
+	alignments := []struct {
+		name      string
+		alignment HorizontalAlignment
+		isCenter  bool
+		isLeft    bool
+		isRight   bool
+	}{
+		{"Left", AlignLeft, false, true, false},
+		{"Center", AlignCenter, true, false, false},
+		{"Right", AlignRight, false, false, true},
 	}
 
-	flb, ok := b.(*FillLineBox)
-	if !ok {
-		t.Fatalf("Expected top-level FillLineBox, got %T", b)
-	}
+	for _, tc := range alignments {
+		t.Run(tc.name, func(t *testing.T) {
+			// A small integration test using FillLineBox to stretch layout width over a multi-word row container
+			container := NewContainerContent([]*Content{
+				NewContent("New Game", WithFontColor(image.White)),
+			},
+				WithHorizontalAlignment(tc.alignment),
+				WithDecorators(func(b Box) Box {
+					return &FillLineBox{Mode: FillEntireLine, Box: b}
+				}),
+			)
 
-	folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 1000, 100)}
+			drawer := &font.Drawer{Face: basicfont.Face7x13}
+			boxer := NewSimpleBoxer([]*Content{container}, drawer)
 
-	line, err := folder.Next(0)
-	line.setStats(0, 0, 0, 0)
-	if err != nil {
-		t.Fatalf("folder Next err: %v", err)
-	}
-
-	if line == nil {
-		t.Fatal("expected line")
-	}
-
-	img := image.NewRGBA(image.Rect(0, 0, 1000, 10))
-
-	var drawnRect image.Rectangle
-
-	options := []DrawOption{
-		BoxRecorder(func(box Box, min image.Point, max image.Point, stats *BoxPositionStats) {
-			if _, ok := box.(*FillLineBox); ok {
-				drawnRect = image.Rectangle{Min: min, Max: max}
+			b, _, err := boxer.Next()
+			if err != nil {
+				t.Fatalf("Boxer next err: %v", err)
 			}
-		}),
+
+			flb, ok := b.(*FillLineBox)
+			if !ok {
+				t.Fatalf("Expected top-level FillLineBox, got %T", b)
+			}
+
+			// Record the natural AdvanceRect BEFORE passing the box to layout/folder
+			naturalAdvance := flb.AdvanceRect()
+			if naturalAdvance >= fixed.I(1000) {
+				t.Fatalf("Natural advance is %v, expected it to be less than 1000", naturalAdvance)
+			}
+
+			folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 1000, 100)}
+
+			line, err := folder.Next(0)
+			line.setStats(0, 0, 0, 0)
+			if err != nil {
+				t.Fatalf("folder Next err: %v", err)
+			}
+
+			if line == nil {
+				t.Fatal("expected line")
+			}
+
+			img := image.NewRGBA(image.Rect(0, 0, 1000, 10))
+
+			var drawnRect image.Rectangle
+
+			options := []DrawOption{
+				BoxRecorder(func(box Box, min image.Point, max image.Point, stats *BoxPositionStats) {
+					if _, ok := box.(*FillLineBox); ok {
+						drawnRect = image.Rectangle{Min: min, Max: max}
+					}
+
+				}),
+			}
+
+			err = line.DrawLine(img, options...)
+			if err != nil {
+				t.Fatalf("DrawLine err: %v", err)
+			}
+
+			if drawnRect.Min.X != 0 || drawnRect.Max.X != 1000 {
+				t.Errorf("Line allocated bounds should be 0 to 1000, got %v", drawnRect)
+			}
+
+			// Verify that AdvanceRect is indeed preserved post-layout
+			if naturalAdvance != flb.AdvanceRect() {
+				t.Errorf("AdvanceRect mutated: before %v, after %v", naturalAdvance, flb.AdvanceRect())
+			}
+		})
 	}
-
-	err = line.DrawLine(img, options...)
-	if err != nil {
-		t.Fatalf("DrawLine err: %v", err)
-	}
-
-	if drawnRect.Min.X != 0 || drawnRect.Max.X != 1000 {
-		t.Errorf("Line allocated bounds should be 0 to 1000, got %v", drawnRect)
-	}
-
-	// Verify that AdvanceRect is indeed preserved and not taking 1000
-
-	expectedAr := flb.AdvanceRect()
-	if expectedAr != flb.AdvanceRect() {
-		t.Errorf("AdvanceRect mutated")
-	}
-
 }
