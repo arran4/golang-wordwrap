@@ -1,9 +1,9 @@
 package wordwrap
 
 import (
+	"golang.org/x/image/font"
 	"image"
 	"image/draw"
-	"golang.org/x/image/font"
 
 	"golang.org/x/image/math/fixed"
 )

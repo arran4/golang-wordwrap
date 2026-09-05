@@ -1,9 +1,9 @@
 package wordwrap
 
 import (
-	"testing"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
+	"testing"
 )
 
 type mockMetricBox struct {
@@ -49,8 +49,8 @@ func TestDecorationBoxMetrics(t *testing.T) {
 
 	// Expected Top = pad.Min.Y (2) + mar.Min.Y (6) = 8
 	// Expected Bottom = pad.Max.Y (4) + mar.Max.Y (8) = 12
-	expAscent := innerM.Ascent + fixed.I(8) // 10 + 8 = 18
-	expDescent := innerM.Descent + fixed.I(12) // 4 + 12 = 16
+	expAscent := innerM.Ascent + fixed.I(8)               // 10 + 8 = 18
+	expDescent := innerM.Descent + fixed.I(12)            // 4 + 12 = 16
 	expHeight := innerM.Height + fixed.I(8) + fixed.I(12) // 16 + 20 = 36
 
 	if gotM.Ascent != expAscent {

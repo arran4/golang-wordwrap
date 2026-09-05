@@ -89,6 +89,9 @@ type ContainerGroup struct {
 // BaselineAlignmentOption wraps a BaselineAlignment.
 type BaselineAlignmentOption BaselineAlignment
 
+// HorizontalAlignmentOption wraps a HorizontalAlignment.
+type HorizontalAlignmentOption HorizontalAlignment
+
 // TextColor returns a Group with FontColor applied, or the Option if no args
 func TextColor(c color.Color, args ...interface{}) interface{} {
 	if len(args) == 0 {
@@ -158,6 +161,9 @@ func Reset() interface{} {
 // Alignment returns a BaselineAlignmentOption.
 func Alignment(a BaselineAlignment) BaselineAlignmentOption { return BaselineAlignmentOption(a) }
 
+// HAlign returns a HorizontalAlignmentOption.
+func HAlign(a HorizontalAlignment) HorizontalAlignmentOption { return HorizontalAlignmentOption(a) }
+
 // Highlight returns a Group with BackgroundColor applied (Alias for BgColor)
 func Highlight(c color.Color, args ...interface{}) interface{} {
 	return BgColor(c, args...)
@@ -200,6 +206,11 @@ func MinWidth(w int) interface{} {
 // Align returns a Group with BaselineAlignmentOption applied
 func Align(a BaselineAlignment, args ...interface{}) interface{} {
 	return Group{Args: append([]interface{}{BaselineAlignmentOption(a)}, args...)}
+}
+
+// HorizontalAlign returns a Group with HorizontalAlignmentOption applied
+func HorizontalAlign(a HorizontalAlignment, args ...interface{}) interface{} {
+	return Group{Args: append([]interface{}{HorizontalAlignmentOption(a)}, args...)}
 }
 
 // ProcessRichArgs parses variadic arguments into standard components
@@ -348,6 +359,9 @@ func (s *rcState) process(args []interface{}) {
 				}
 				if s.currentStyle.Alignment != AlignBaseline {
 					opts = append(opts, WithAlignment(s.currentStyle.Alignment))
+				}
+				if s.currentStyle.HorizontalAlignment != AlignLeft {
+					opts = append(opts, WithHorizontalAlignment(s.currentStyle.HorizontalAlignment))
 				}
 			}
 			if s.currentID != nil {
@@ -545,6 +559,11 @@ func (s *rcState) process(args []interface{}) {
 				s.currentStyle = &Style{}
 			}
 			s.currentStyle.Alignment = BaselineAlignment(v)
+		case HorizontalAlignmentOption:
+			if s.currentStyle == nil {
+				s.currentStyle = &Style{}
+			}
+			s.currentStyle.HorizontalAlignment = HorizontalAlignment(v)
 		case *font.Drawer:
 			if v != nil {
 				s.drawer = v
@@ -565,6 +584,9 @@ func (s *rcState) process(args []interface{}) {
 				}
 				if s.currentStyle.Alignment != AlignBaseline {
 					opts = append(opts, WithAlignment(s.currentStyle.Alignment))
+				}
+				if s.currentStyle.HorizontalAlignment != AlignLeft {
+					opts = append(opts, WithHorizontalAlignment(s.currentStyle.HorizontalAlignment))
 				}
 				if len(s.currentStyle.Decorators) > 0 {
 					opts = append(opts, WithDecorators(s.currentStyle.Decorators...))
@@ -587,6 +609,9 @@ func (s *rcState) process(args []interface{}) {
 			if s.currentStyle != nil {
 				if s.currentStyle.Alignment != AlignBaseline {
 					opts = append(opts, WithAlignment(s.currentStyle.Alignment))
+				}
+				if s.currentStyle.HorizontalAlignment != AlignLeft {
+					opts = append(opts, WithHorizontalAlignment(s.currentStyle.HorizontalAlignment))
 				}
 				if len(s.currentStyle.Decorators) > 0 {
 					opts = append(opts, WithDecorators(s.currentStyle.Decorators...))

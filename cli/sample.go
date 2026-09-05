@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/png"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"github.com/arran4/golang-wordwrap"
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 //go:embed "chevron.png"
@@ -55,6 +57,10 @@ func GenerateSample() error {
 		{200, 120, 16, 75, "goregular", "testdata/sample6.txt", "images/sample15.png", []wordwrap.WrapperOption{wordwrap.BottomBlock}},
 	}
 
+	if err := SampleGameMenu(); err != nil {
+		return err
+	}
+
 	for _, s := range samples {
 		if err := SampleType1(s.w, s.h, s.size, s.dpi, s.font, s.src, s.dst, s.opts...); err != nil {
 			return err
@@ -87,6 +93,72 @@ func SampleType1(width, height int, fontsize, dpi float64, fontname, textsource,
 		return fmt.Errorf("error with saving file: %w", err)
 	}
 	log.Printf("Done as %s", outfilename)
+	return nil
+}
+
+// SampleGameMenu demonstrates full-width bordered menu rows with centered text
+func SampleGameMenu() error {
+	log.Printf("Working on images/sample_gamemenu.png")
+	width, height := 300, 400
+	i := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.Draw(i, i.Bounds(), image.NewUniform(image.Black), i.Bounds().Min, draw.Over)
+
+	grfHeading, _ := getFontFace("goregular", 24, 75)
+	grfItem, _ := getFontFace("goregular", 16, 75)
+
+	menuItem := func(text string, highlighted bool) *wordwrap.Content {
+		bgColor := image.NewUniform(image.Transparent)
+		textColor := image.White
+		if highlighted {
+			bgColor = image.NewUniform(color.RGBA{R: 50, G: 50, B: 150, A: 255})
+		}
+		return wordwrap.NewContainerContent([]*wordwrap.Content{
+			wordwrap.NewContent(text,
+				wordwrap.WithFont(grfItem),
+				wordwrap.WithFontColor(textColor),
+			),
+		},
+			wordwrap.WithBackgroundColor(bgColor),
+			wordwrap.WithPadding(fixed.R(0, 10<<6, 0, 10<<6)),
+			wordwrap.WithMargin(fixed.R(20<<6, 5<<6, 20<<6, 5<<6)),
+			wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
+			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
+				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
+			}),
+		)
+	}
+
+	content := []*wordwrap.Content{
+		wordwrap.NewContainerContent([]*wordwrap.Content{
+			wordwrap.NewContent("Game Menu",
+				wordwrap.WithFont(grfHeading),
+				wordwrap.WithFontColor(image.White),
+			),
+		},
+			wordwrap.WithMargin(fixed.R(0, 20<<6, 0, 40<<6)),
+			wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
+			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
+				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
+			}),
+		),
+		menuItem("New Game", false),
+		menuItem("Load Game", false),
+		menuItem("Options", true),
+		menuItem("Quit", false),
+	}
+
+	sw := wordwrap.NewSimpleWrapper(content, grfItem)
+	lines, _, err := sw.TextToRect(i.Bounds())
+	if err != nil {
+		return fmt.Errorf("text wrap error: %w", err)
+	}
+	if err := sw.RenderLines(i, lines, i.Bounds().Min); err != nil {
+		return fmt.Errorf("text draw error: %w", err)
+	}
+	if err := SaveFile(i, "images/sample_gamemenu.png"); err != nil {
+		return fmt.Errorf("error saving file: %w", err)
+	}
+	log.Printf("Done as images/sample_gamemenu.png")
 	return nil
 }
 

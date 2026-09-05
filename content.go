@@ -18,6 +18,15 @@ const (
 	AlignBottom
 )
 
+// HorizontalAlignment defines how content is aligned horizontally within its allocated box.
+type HorizontalAlignment int
+
+const (
+	AlignLeft HorizontalAlignment = iota
+	AlignCenter
+	AlignRight
+)
+
 // Content represents a piece of text or an image with associated styling.
 type Content struct {
 	text       string
@@ -37,14 +46,15 @@ type Style struct {
 	Padding         fixed.Rectangle26_6
 	Margin          fixed.Rectangle26_6
 
-	Alignment       BaselineAlignment
-	Effects         []BoxEffect
-	FixedBackground bool
-	BgPositioning   BackgroundPositioning
-	Border          fixed.Rectangle26_6
-	BorderImage     image.Image
-	Decorators      []func(Box) Box
-	MinSize         fixed.Point26_6
+	Alignment           BaselineAlignment
+	HorizontalAlignment HorizontalAlignment
+	Effects             []BoxEffect
+	FixedBackground     bool
+	BgPositioning       BackgroundPositioning
+	Border              fixed.Rectangle26_6
+	BorderImage         image.Image
+	Decorators          []func(Box) Box
+	MinSize             fixed.Point26_6
 }
 
 // WithMinSize sets the minimum size of the content
@@ -124,6 +134,16 @@ func WithAlignment(a BaselineAlignment) ContentOption {
 			c.style = &Style{}
 		}
 		c.style.Alignment = a
+	}
+}
+
+// WithHorizontalAlignment sets the horizontal alignment of a Content object.
+func WithHorizontalAlignment(a HorizontalAlignment) ContentOption {
+	return func(c *Content) {
+		if c.style == nil {
+			c.style = &Style{}
+		}
+		c.style.HorizontalAlignment = a
 	}
 }
 
