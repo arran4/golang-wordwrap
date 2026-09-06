@@ -156,3 +156,103 @@ func TestSimpleFolder_ImageBox_PrecedingContent(t *testing.T) {
 		t.Fatalf("Expected nil line when boxer is empty, got %v", line3)
 	}
 }
+
+func TestSimpleFolder_ImageBox_Bug47(t *testing.T) {
+	b1 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 150, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	b2 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 50, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	b3 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 51, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	b4 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 49, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+
+	// Test 1: Image wider than container on empty line
+	boxer1 := &manualBoxer{boxes: []Box{b1}}
+	folder1 := NewSimpleFolder(boxer1, image.Rect(0, 0, 100, 100), nil)
+	line1, err := folder1.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if line1 == nil {
+		t.Fatalf("Line is nil, infinite loop expected")
+	}
+	if len(line1.(*SimpleLine).boxes) != 1 {
+		t.Fatalf("Expected 1 box in line, got %d", len(line1.(*SimpleLine).boxes))
+	}
+
+	// Test 2: Oversized image after preceding text/content
+	boxer2 := &manualBoxer{boxes: []Box{b2, b1}}
+	folder2 := NewSimpleFolder(boxer2, image.Rect(0, 0, 100, 100), nil)
+	line2, err := folder2.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(line2.(*SimpleLine).boxes) != 1 {
+		t.Fatalf("Expected 1 box in line, got %d", len(line2.(*SimpleLine).boxes))
+	}
+	if len(boxer2.boxes) != 1 {
+		t.Fatalf("Expected 1 box left in boxer, got %d", len(boxer2.boxes))
+	}
+
+	line3, err := folder2.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(line3.(*SimpleLine).boxes) != 1 {
+		t.Fatalf("Expected 1 box in line, got %d", len(line3.(*SimpleLine).boxes))
+	}
+	if line3.(*SimpleLine).boxes[0] != b1 {
+		t.Fatalf("Expected second line to contain b1")
+	}
+
+	// Test 3: Repeated Next calls do not return unbounded empty lines
+	line4, err := folder2.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if line4 != nil {
+		t.Fatalf("Expected nil line when boxer is empty, got %v", line4)
+	}
+
+	// Test 4: Exact width boundary behaviour
+	boxer3 := &manualBoxer{boxes: []Box{b2, b2}}
+	folder3 := NewSimpleFolder(boxer3, image.Rect(0, 0, 100, 100), nil)
+	line5, err := folder3.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(line5.(*SimpleLine).boxes) != 1 {
+		t.Fatalf("Expected 1 box in line, got %d", len(line5.(*SimpleLine).boxes))
+	}
+
+	// Test 5: Slightly below boundary
+	boxer4 := &manualBoxer{boxes: []Box{b2, b4}}
+	folder4 := NewSimpleFolder(boxer4, image.Rect(0, 0, 100, 100), nil)
+	line6, err := folder4.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(line6.(*SimpleLine).boxes) != 2 {
+		t.Fatalf("Expected 2 boxes in line, got %d", len(line6.(*SimpleLine).boxes))
+	}
+
+	// Test 6: Slightly above boundary
+	boxer5 := &manualBoxer{boxes: []Box{b2, b3}}
+	folder5 := NewSimpleFolder(boxer5, image.Rect(0, 0, 100, 100), nil)
+	line7, err := folder5.Next(100)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(line7.(*SimpleLine).boxes) != 1 {
+		t.Fatalf("Expected 1 box in line, got %d", len(line7.(*SimpleLine).boxes))
+	}
+}
