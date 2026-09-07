@@ -156,3 +156,82 @@ func TestSimpleFolder_ImageBox_PrecedingContent(t *testing.T) {
 		t.Fatalf("Expected nil line when boxer is empty, got %v", line3)
 	}
 }
+
+func TestSimpleFolder_ImageBox_SupplementaryCoverage(t *testing.T) {
+	bImage150 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 150, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	bImage100 := &ImageBox{
+		I: image.NewRGBA(image.Rect(0, 0, 100, 100)),
+		M: font.Metrics{Height: fixed.I(100)},
+	}
+	bFollowingText := NewSimpleTextBoxForTest(t, FontFace16DPI180ForTest(t), "Following")
+
+	t.Run("Queue order preservation with oversized image", func(t *testing.T) {
+		boxer := &manualBoxer{boxes: []Box{bImage150, bFollowingText}}
+		folder := NewSimpleFolder(boxer, image.Rect(0, 0, 100, 100), nil)
+
+		// 1. Consume the oversized image on an empty line
+		line1, err := folder.Next(100)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if line1 == nil {
+			t.Fatalf("Line 1 is nil")
+		}
+		sl1 := line1.(*SimpleLine)
+		if len(sl1.boxes) != 1 || sl1.boxes[0] != bImage150 {
+			t.Fatalf("Expected line 1 to contain bImage150, got %v", sl1.boxes)
+		}
+
+		// 2. Consume the following box on the next line
+		line2, err := folder.Next(100)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if line2 == nil {
+			t.Fatalf("Line 2 is nil")
+		}
+		sl2 := line2.(*SimpleLine)
+		if len(sl2.boxes) != 1 || sl2.boxes[0] != bFollowingText {
+			t.Fatalf("Expected line 2 to contain bFollowingText, got %v", sl2.boxes)
+		}
+
+		// 3. No more boxes
+		line3, err := folder.Next(100)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if line3 != nil {
+			t.Fatalf("Expected line 3 to be nil, got %v", line3)
+		}
+	})
+
+	t.Run("Exact exact-width single element empty-line", func(t *testing.T) {
+		// Just exactly fits (100) on an empty line
+		boxer := &manualBoxer{boxes: []Box{bImage100, bFollowingText}}
+		folder := NewSimpleFolder(boxer, image.Rect(0, 0, 100, 100), nil)
+
+		line1, err := folder.Next(100)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if line1 == nil {
+			t.Fatalf("Line 1 is nil")
+		}
+		sl1 := line1.(*SimpleLine)
+		if len(sl1.boxes) != 1 || sl1.boxes[0] != bImage100 {
+			t.Fatalf("Expected line 1 to contain bImage100, got %v", sl1.boxes)
+		}
+
+		line2, err := folder.Next(100)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		sl2 := line2.(*SimpleLine)
+		if len(sl2.boxes) != 1 || sl2.boxes[0] != bFollowingText {
+			t.Fatalf("Expected line 2 to contain bFollowingText, got %v", sl2.boxes)
+		}
+	})
+}
