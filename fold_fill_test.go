@@ -180,3 +180,58 @@ func TestFillLineBoxDrawingGeometry(t *testing.T) {
 		t.Errorf("Expected pixel at x=99 to be drawn by DecorationBox, but it was transparent")
 	}
 }
+
+func TestFillLineBoxContentFollowing(t *testing.T) {
+	testCases := []struct {
+		name string
+		mode FillMode
+	}{
+		{"FillRestOfLine", FillRestOfLine},
+		{"FillEntireLine", FillEntireLine},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			boxes := []Box{
+				&FillLineBox{Mode: tc.mode, Box: &dummyBox{width: 10, height: 10}},
+				&dummyBox{width: 30, height: 10},
+			}
+			boxer := &fillManualBoxer{boxes: boxes}
+			folder := NewSimpleFolder(boxer, image.Rect(0, 0, 100, 100), nil)
+
+			var lines []Line
+			for {
+				line, err := folder.Next(100)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if line == nil {
+					break
+				}
+				lines = append(lines, line)
+			}
+
+			if len(lines) != 2 {
+				t.Fatalf("Expected 2 lines, got %d", len(lines))
+			}
+
+			// First line should ONLY contain the FillLineBox
+			boxesOnLine1 := lines[0].Boxes()
+			if len(boxesOnLine1) != 1 {
+				t.Errorf("Expected first line to contain 1 box, got %d", len(boxesOnLine1))
+			}
+			if _, ok := boxesOnLine1[0].(*FillLineBox); !ok {
+				t.Errorf("Expected first box on first line to be FillLineBox, got %T", boxesOnLine1[0])
+			}
+
+			// Second line should contain the following content
+			boxesOnLine2 := lines[1].Boxes()
+			if len(boxesOnLine2) != 1 {
+				t.Errorf("Expected second line to contain 1 box, got %d", len(boxesOnLine2))
+			}
+			if _, ok := boxesOnLine2[0].(*dummyBox); !ok {
+				t.Errorf("Expected first box on second line to be dummyBox, got %T", boxesOnLine2[0])
+			}
+		})
+	}
+}
