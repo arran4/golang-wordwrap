@@ -363,8 +363,6 @@ func (sf *SimpleFolder) fitAddBox(i int, b Box, l *SimpleLine) (bool, error) {
 		szdx := (l.size.Max.X - l.size.Min.X).Ceil()
 		cdx := sf.container.Dx()
 		if irdx+szdx >= cdx {
-			// If the line is empty, we must add the box even if it overflows
-			// to prevent an infinite loop where no progress is made.
 			if len(l.boxes) > 0 {
 				sf.boxer.Push(b)
 				done = true
