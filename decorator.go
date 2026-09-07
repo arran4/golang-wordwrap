@@ -8,7 +8,9 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// DecorationBox is a box that adds padding and margin around another box
+// DecorationBox is a box that adds padding and margin around another box.
+// Padding and margins participate in layout calculations (AdvanceRect, MetricsRect)
+// as well as in visual drawing.
 type DecorationBox struct {
 	Box
 	Padding       fixed.Rectangle26_6
@@ -72,19 +74,24 @@ func (db *DecorationBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	db.Box.DrawBox(innerImg, y-yOffset, dc)
 }
 
+// MinSize returns the minimum size of the inner box plus any horizontal and vertical padding and margins.
 func (db *DecorationBox) MinSize() (fixed.Int26_6, fixed.Int26_6) {
 	w, h := db.Box.MinSize()
 	return w + db.Padding.Max.X + db.Padding.Min.X + db.Margin.Max.X + db.Margin.Min.X,
 		h + db.Padding.Max.Y + db.Padding.Min.Y + db.Margin.Max.Y + db.Margin.Min.Y
 }
 
+// MaxSize returns the maximum size of the inner box plus padding and margins.
+// If an inner dimension is unbounded (0), that dimension remains unbounded (0) and padding/margins are not added to it.
 func (db *DecorationBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 	w, h := db.Box.MaxSize()
-	if w == 0 && h == 0 {
-		return 0, 0
+	if w != 0 {
+		w += db.Padding.Max.X + db.Padding.Min.X + db.Margin.Max.X + db.Margin.Min.X
 	}
-	return w + db.Padding.Max.X + db.Padding.Min.X + db.Margin.Max.X + db.Margin.Min.X,
-		h + db.Padding.Max.Y + db.Padding.Min.Y + db.Margin.Max.Y + db.Margin.Min.Y
+	if h != 0 {
+		h += db.Padding.Max.Y + db.Padding.Min.Y + db.Margin.Max.Y + db.Margin.Min.Y
+	}
+	return w, h
 }
 
 func (db *DecorationBox) AdvanceRect() fixed.Int26_6 {

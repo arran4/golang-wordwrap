@@ -70,3 +70,78 @@ func TestDecorationBoxMetrics(t *testing.T) {
 		t.Errorf("expected Advance %v, got %v", expAdvance, gotA)
 	}
 }
+
+func TestDecorationBoxAdvance(t *testing.T) {
+	innerA := fixed.I(20)
+	mb := &mockMetricBox{
+		m: font.Metrics{Ascent: fixed.I(10), Descent: fixed.I(4), Height: fixed.I(14)},
+		a: innerA,
+	}
+
+	// Test padding only
+	pad := fixed.Rectangle26_6{
+		Min: fixed.Point26_6{X: fixed.I(2)},
+		Max: fixed.Point26_6{X: fixed.I(3)},
+	}
+	dbPad := NewDecorationBox(mb, pad, fixed.Rectangle26_6{}, nil, BgPositioningPassThrough)
+	if got := dbPad.AdvanceRect(); got != innerA+fixed.I(5) {
+		t.Errorf("AdvanceRect with padding = %v, want %v", got, innerA+fixed.I(5))
+	}
+
+	// Test margin only
+	mar := fixed.Rectangle26_6{
+		Min: fixed.Point26_6{X: fixed.I(4)},
+		Max: fixed.Point26_6{X: fixed.I(1)},
+	}
+	dbMar := NewDecorationBox(mb, fixed.Rectangle26_6{}, mar, nil, BgPositioningPassThrough)
+	if got := dbMar.AdvanceRect(); got != innerA+fixed.I(5) {
+		t.Errorf("AdvanceRect with margin = %v, want %v", got, innerA+fixed.I(5))
+	}
+}
+
+func TestDecorationBoxMetricsZero(t *testing.T) {
+	innerM := font.Metrics{
+		Ascent:  fixed.I(10),
+		Descent: fixed.I(4),
+		Height:  fixed.I(16),
+	}
+	innerA := fixed.I(20)
+
+	mb := &mockMetricBox{
+		m: innerM,
+		a: innerA,
+	}
+
+	db := NewDecorationBox(mb, fixed.Rectangle26_6{}, fixed.Rectangle26_6{}, nil, BgPositioningPassThrough)
+
+	gotM := db.MetricsRect()
+	if gotM.Ascent != innerM.Ascent || gotM.Descent != innerM.Descent || gotM.Height != innerM.Height {
+		t.Errorf("MetricsRect with zero decoration = %v, want %v", gotM, innerM)
+	}
+
+	gotA := db.AdvanceRect()
+	if gotA != innerA {
+		t.Errorf("AdvanceRect with zero decoration = %v, want %v", gotA, innerA)
+	}
+}
+
+func TestDecorationBoxNested(t *testing.T) {
+	innerM := font.Metrics{Ascent: fixed.I(10), Descent: fixed.I(4), Height: fixed.I(14)}
+	innerA := fixed.I(20)
+	mb := &mockMetricBox{m: innerM, a: innerA}
+
+	pad := fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(1), Y: fixed.I(1)}, Max: fixed.Point26_6{X: fixed.I(1), Y: fixed.I(1)}}
+
+	db1 := NewDecorationBox(mb, pad, pad, nil, BgPositioningPassThrough)  // Total add: 2+2=4 padding+margin per dimension
+	db2 := NewDecorationBox(db1, pad, pad, nil, BgPositioningPassThrough) // Another 4
+
+	gotM := db2.MetricsRect()
+	if gotM.Height != innerM.Height+fixed.I(8) { // 14 + 8 = 22
+		t.Errorf("Nested Height = %v, want %v", gotM.Height, innerM.Height+fixed.I(8))
+	}
+
+	gotA := db2.AdvanceRect()
+	if gotA != innerA+fixed.I(8) {
+		t.Errorf("Nested Advance = %v, want %v", gotA, innerA+fixed.I(8))
+	}
+}
