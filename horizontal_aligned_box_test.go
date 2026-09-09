@@ -13,7 +13,6 @@ type dummyHAlignBox struct {
 	height      int
 	drawn       image.Rectangle
 	drawCalls   int
-	naturalDraw bool
 }
 
 func (d *dummyHAlignBox) AdvanceRect() fixed.Int26_6 {
