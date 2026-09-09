@@ -11,6 +11,10 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+func hasInsets(rect fixed.Rectangle26_6) bool {
+	return rect.Min.X != 0 || rect.Min.Y != 0 || rect.Max.X != 0 || rect.Max.Y != 0
+}
+
 // Box represents a non-divisible unit of content (e.g., a word or image), which can be nested.
 type Box interface {
 	// AdvanceRect returns the width of the content.
@@ -357,7 +361,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 						Alignment: currentContent.style.HorizontalAlignment,
 					}
 				}
-				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
+				if hasInsets(currentContent.style.Padding) || hasInsets(currentContent.style.Margin) {
 					bg := currentContent.style.BackgroundColor
 					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 				}
@@ -413,7 +417,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 						Alignment: currentContent.style.HorizontalAlignment,
 					}
 				}
-				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
+				if hasInsets(currentContent.style.Padding) || hasInsets(currentContent.style.Margin) {
 					bg := currentContent.style.BackgroundColor
 					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 				}
@@ -507,7 +511,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 					Alignment: currentContent.style.HorizontalAlignment,
 				}
 			}
-			if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
+			if hasInsets(currentContent.style.Padding) || hasInsets(currentContent.style.Margin) {
 				bg := currentContent.style.BackgroundColor
 				b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 			}
@@ -1222,6 +1226,13 @@ func (hab *HorizontalAlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfi
 		}
 
 		subR := image.Rect(bounds.Min.X+offset, bounds.Min.Y, bounds.Min.X+offset+naturalWidth, bounds.Max.Y)
+
+		if naturalWidth == 0 {
+			empty := image.NewRGBA(subR)
+			hab.Box.DrawBox(empty, y, dc)
+			return
+		}
+
 		if !subR.Empty() {
 			subI := i.SubImage(subR).(Image)
 			hab.Box.DrawBox(subI, y, dc)
