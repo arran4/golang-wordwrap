@@ -464,7 +464,7 @@ func Example_richTextComprehensive() {
 		// Background Image Pattern
 		wordwrap.Group{
 			Args: []interface{}{
-				wordwrap.BgImage(pattern),
+				wordwrap.BgImage(pattern, wordwrap.BgPositioningPassThrough),
 				"Text on Pattern Background. ",
 				fontLarge, "Even Large Text on Pattern.",
 			},
