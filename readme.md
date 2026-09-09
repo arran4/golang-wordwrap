@@ -538,13 +538,3 @@ The `Align` helper simplifies vertical alignment within a line or container (Top
 ```go
 wordwrap.Align(wordwrap.AlignMiddle, myImage)
 ```
-
-## Alignment Concepts
-
-This library distinguishes between several independent axes of alignment to ensure accurate and composable layouts:
-
-1. **Natural box size** (`AdvanceRect()`): The inherent width of text or an image before layout adjustments.
-2. **Allocated box width** (`FillLineBox` / `FillRestOfLine` / `FillEntireLine`): The space assigned to a box by the line layout engine, which may exceed its natural size to fill available page width.
-3. **Horizontal content alignment** (`HorizontalAlignment` with `HorizontalAlignedBox`): Left/Center/Right positioning of the *natural content* INSIDE a wider *allocated box width*.
-4. **Line positioning** (`HorizontalCenterLines`, `RightLines`): The whole-line positioning offset within the root page container.
-5. **Vertical/Baseline alignment** (`AlignBaseline`, `AlignMiddle`, etc.): The vertical position of content relative to the text baseline.
