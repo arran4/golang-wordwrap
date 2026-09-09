@@ -1183,8 +1183,32 @@ func (b *AlignedBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 	return b.Box.MaxSize()
 }
 
+func (ab *AlignedBox) MetricsRect() font.Metrics {
+	m := ab.Box.MetricsRect()
+	h := m.Ascent + m.Descent
+
+	switch ab.Alignment {
+	case AlignTop:
+		m.Ascent = h
+		m.Descent = 0
+	case AlignMiddle:
+		m.Ascent = fixed.I(h.Ceil() / 2)
+		m.Descent = h - m.Ascent
+	case AlignBottom:
+		m.Ascent = 0
+		m.Descent = h
+	case AlignBaseline:
+		// Do nothing
+	}
+	return m
+}
+
 func (ab *AlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
-	ab.Box.DrawBox(i, y, dc)
+	m := ab.Box.MetricsRect()
+	alignedM := ab.MetricsRect()
+
+	innerY := y - alignedM.Ascent + m.Ascent
+	ab.Box.DrawBox(i, innerY, dc)
 }
 
 // turnOnBox draws a box around the box

@@ -22,8 +22,10 @@ func Example_richTextComprehensive() {
 	fontLarge := util.GetFontFace(40, 96, gr)
 
 	// Create a simple red box image for inline image demo
-	redBox := image.NewRGBA(image.Rect(0, 0, 30, 30))
+	redBox := image.NewRGBA(image.Rect(0, 0, 30, 80))
 	draw.Draw(redBox, redBox.Bounds(), &image.Uniform{color.RGBA{255, 0, 0, 255}}, image.Point{}, draw.Src)
+	// Add a white line across the middle
+	draw.Draw(redBox, image.Rect(0, 39, 30, 41), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
 
 	// Create a pebbles pattern for background demo using go-pattern
 	// Using Scatter for true overlapping geometry.
@@ -157,27 +159,37 @@ func Example_richTextComprehensive() {
 		".\n\n",
 
 		// Inline Images and Alignment
-		"Image aligned baseline: ",
+		// Draw a line across the baseline
+		"Image aligned ", wordwrap.Underline(color.Black), "baseline", wordwrap.Underline(color.Transparent), ": ",
 		wordwrap.ImageContent{Image: redBox},
 		" Text after.",
 		"\n",
-		"Image aligned Top: ",
+		"Image aligned ", wordwrap.Underline(color.Black), "Top     ", wordwrap.Underline(color.Transparent), ": ",
 		wordwrap.Group{
 			Args: []interface{}{
 				wordwrap.Alignment(wordwrap.AlignTop),
 				wordwrap.ImageContent{Image: redBox},
 			},
 		},
-		" (Text Top).",
+		" Text after.",
 		"\n",
-		"Image aligned Bottom: ",
+		"Image aligned ", wordwrap.Underline(color.Black), "Middle  ", wordwrap.Underline(color.Transparent), ": ",
+		wordwrap.Group{
+			Args: []interface{}{
+				wordwrap.Alignment(wordwrap.AlignMiddle),
+				wordwrap.ImageContent{Image: redBox},
+			},
+		},
+		" Text after.",
+		"\n",
+		"Image aligned ", wordwrap.Underline(color.Black), "Bottom  ", wordwrap.Underline(color.Transparent), ": ",
 		wordwrap.Group{
 			Args: []interface{}{
 				wordwrap.Alignment(wordwrap.AlignBottom),
 				wordwrap.ImageContent{Image: redBox},
 			},
 		},
-		" (Text Bottom).",
+		" Text after.",
 		"\n\n",
 
 		// Background Image Pattern

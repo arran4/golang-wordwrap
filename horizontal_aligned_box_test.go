@@ -320,10 +320,11 @@ func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
 		t.Errorf("Horizontal composition inside Vertical alignment failed, expected X=40, got %v", inner.drawn.Min.X)
 	}
 
-	// Our dummy has Ascent=10, Descent=0.
-	// `AlignBottom` adds `MetricsRect().Descent`. Since Descent is 0, y=10 should be passed cleanly.
-	if inner.lastY != fixed.I(10) {
-		t.Errorf("Vertical composition unexpectedly modified Y baseline: expected 10:00, got %v", inner.lastY)
+	// Our dummy has Ascent=10, Descent=0. Total height = 10.
+	// `AlignBottom` changes Ascent=0, Descent=10.
+	// innerY = 10 - 0 + 10 = 20.
+	if inner.lastY != fixed.I(20) {
+		t.Errorf("Vertical composition unexpectedly modified Y baseline: expected 20:00, got %v", inner.lastY)
 	}
 }
 
