@@ -9,9 +9,9 @@ import (
 )
 
 type dummyHAlignBox struct {
-	width  int
-	height int
-	drawn  image.Rectangle
+	width     int
+	height    int
+	drawn     image.Rectangle
 	drawCalls int
 	lastY     fixed.Int26_6
 	fracWidth fixed.Int26_6
@@ -40,7 +40,6 @@ func (d *dummyHAlignBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	d.drawCalls++
 	d.lastY = y
 }
-
 
 func (d *dummyHAlignBox) FontDrawer() *font.Drawer {
 	return nil
@@ -258,6 +257,118 @@ func TestHorizontalAlignedMultiWord(t *testing.T) {
 	}
 }
 
+func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
+	// Case 13: Whole-line positioning composes independently
+	// We construct a line of 60px width inside a 100px render target.
+	// We center the line itself (+20px offset to line).
+	// Within the line, we have a box allocated 60px but naturally 20px, aligned right (+40px offset).
+	// Final expected X = 20 + 40 = 60.
+
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignRight}
+
+	// We can manually provide an allocated width wider than the natural width without filling the entire container.
+	// To do so we just use an inline dummy Box with large AdvanceRect and wrap it, or just use a container size of 60
+	// for the Folder layout, and then RenderLines into a 100px wide image!
+	// Yes! Folder container = 60. So FillEntireLine will allocate exactly 60!
+
+	flb := &FillLineBox{Mode: FillEntireLine, Box: hab}
+
+	boxer := &manualBoxer{boxes: []Box{flb}}
+	folder := &SimpleFolder{boxer: boxer, container: image.Rect(0, 0, 60, 100)} // 60 width container
+	line, err := folder.Next(0)
+	if err != nil {
+		t.Fatalf("folder Next err: %v", err)
+	}
+	if line == nil {
+		t.Fatalf("expected line")
+	}
+
+	sw := &SimpleWrapper{}
+	img := image.NewRGBA(image.Rect(0, 0, 100, 10)) // 100 width render target
+
+	line.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)
+	err = sw.RenderLines(img, []Line{line}, img.Bounds().Min)
+	if err != nil {
+		t.Fatalf("RenderLines err: %v", err)
+	}
+
+	// Line centering: (100 - 60) / 2 = 20
+	// Box right align: 60 allocated - 20 natural = 40.
+	// Total X = 20 + 40 = 60.
+	if inner.drawn.Min.X != 60 {
+		t.Errorf("Composition failed: expected total offset 60, got %d", inner.drawn.Min.X)
+	}
+}
+
+func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
+	// Case 12: Composition with baseline/vertical alignment
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
+	vab := &AlignedBox{Box: hab, Alignment: AlignBottom}
+
+	if vab.AdvanceRect() != inner.AdvanceRect() {
+		t.Errorf("Vertical alignment composition mutated horizontal natural advance: got %v", vab.AdvanceRect())
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 20))
+	dc := &DrawConfig{}
+
+	vab.DrawBox(img, fixed.I(10), dc)
+
+	if inner.drawn.Min.X != 40 {
+		t.Errorf("Horizontal composition inside Vertical alignment failed, expected X=40, got %v", inner.drawn.Min.X)
+	}
+
+	// Our dummy has Ascent=10, Descent=0.
+	// `AlignBottom` adds `MetricsRect().Descent`. Since Descent is 0, y=10 should be passed cleanly.
+	if inner.lastY != fixed.I(10) {
+		t.Errorf("Vertical composition unexpectedly modified Y baseline: expected 10:00, got %v", inner.lastY)
+	}
+}
+
+func TestHorizontalAlignedBox_FillEntireLineGeometry(t *testing.T) {
+	// Tests FillEntireLine with left/center/right alignments folded dynamically
+	alignments := []struct {
+		name      string
+		alignment HorizontalAlignment
+		expectedX int
+	}{
+		{"Left", AlignLeft, 0},
+		{"Center", AlignCenter, 40}, // 100 total width. Box width 20. Offset = (100-20)/2 = 40.
+		{"Right", AlignRight, 80},   // Offset = 100-20 = 80.
+	}
+
+	for _, tc := range alignments {
+		t.Run(tc.name, func(t *testing.T) {
+			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+
+			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
+			flb := &FillLineBox{Mode: FillEntireLine, Box: hab}
+
+			folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 100, 100)}
+
+			line, err := folder.Next(0)
+			if err != nil {
+				t.Fatalf("folder Next err: %v", err)
+			}
+			if line == nil {
+				t.Fatalf("expected line")
+			}
+
+			img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+			err = line.DrawLine(img)
+			if err != nil {
+				t.Fatalf("DrawLine err: %v", err)
+			}
+
+			if inner.drawn.Min.X != tc.expectedX {
+				t.Errorf("Expected X=%d for FillEntireLine %s, got %v", tc.expectedX, tc.name, inner.drawn.Min.X)
+			}
+		})
+	}
+}
+
 func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.T) {
 	// Case 10: Decorated full-width geometry tests
 	alignments := []struct {
@@ -272,7 +383,7 @@ func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.
 
 	for _, tc := range alignments {
 		t.Run(tc.name, func(t *testing.T) {
-			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
 
 			padding := fixed.Rectangle26_6{
@@ -327,112 +438,7 @@ func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.
 	}
 }
 
-func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
-	// Case 12: Composition with baseline/vertical alignment
-	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
-	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
-	vab := &AlignedBox{Box: hab, Alignment: AlignBottom}
-
-	if vab.AdvanceRect() != inner.AdvanceRect() {
-		t.Errorf("Vertical alignment composition mutated horizontal natural advance: got %v", vab.AdvanceRect())
-	}
-
-	img := image.NewRGBA(image.Rect(0, 0, 100, 20))
-	dc := &DrawConfig{}
-
-	vab.DrawBox(img, fixed.I(10), dc)
-
-	if inner.drawn.Min.X != 40 {
-		t.Errorf("Horizontal composition inside Vertical alignment failed, expected X=40, got %v", inner.drawn.Min.X)
-	}
-
-	if inner.lastY != fixed.I(10) {
-		t.Errorf("Vertical alignment unexpectedly mutated Y baseline: %v", inner.lastY)
-	}
-}
-
-func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
-	// Case 13: Whole-line positioning composes independently
-	// We construct a line of 60px width inside a 100px render target.
-	// We center the line itself (+20px offset to line).
-	// Within the line, we have a box allocated 60px but naturally 20px, aligned right (+40px offset).
-	// Final expected X = 20 + 40 = 60.
-
-	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
-	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignRight}
-
-	// We can manually provide an allocated width wider than the natural width without filling the entire container.
-	// To do so we just use an inline dummy Box with large AdvanceRect and wrap it, or just use a container size of 60
-	// for the Folder layout, and then RenderLines into a 100px wide image!
-	// Yes! Folder container = 60. So FillEntireLine will allocate exactly 60!
-
-	flb := &FillLineBox{Mode: FillEntireLine, Box: hab}
-
-	boxer := &manualBoxer{boxes: []Box{flb}}
-	folder := &SimpleFolder{boxer: boxer, container: image.Rect(0, 0, 60, 100)} // 60 width container
-	line, err := folder.Next(0)
-	if err != nil {
-		t.Fatalf("folder Next err: %v", err)
-	}
-	if line == nil {
-		t.Fatalf("expected line")
-	}
-
-	sw := &SimpleWrapper{}
-	img := image.NewRGBA(image.Rect(0, 0, 100, 10)) // 100 width render target
-
-	line.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)
-	err = sw.RenderLines(img, []Line{line}, img.Bounds().Min)
-	if err != nil {
-		t.Fatalf("RenderLines err: %v", err)
-	}
-
-	// Line centering: (100 - 60) / 2 = 20
-	// Box right align: 60 allocated - 20 natural = 40.
-	// Total X = 20 + 40 = 60.
-	if inner.drawn.Min.X != 60 {
-		t.Errorf("Composition failed: expected total offset 60, got %d", inner.drawn.Min.X)
-	}
-}
-
-func TestHorizontalAlignedBox_FillEntireLineGeometry(t *testing.T) {
-	// Tests FillEntireLine with left/center/right alignments folded dynamically
-	alignments := []struct {
-		name      string
-		alignment HorizontalAlignment
-		expectedX int
-	}{
-		{"Left", AlignLeft, 0},
-		{"Center", AlignCenter, 40}, // 100 total width. Box width 20. Offset = (100-20)/2 = 40.
-		{"Right", AlignRight, 80},   // Offset = 100-20 = 80.
-	}
-
-	for _, tc := range alignments {
-		t.Run(tc.name, func(t *testing.T) {
-			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
-
-			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
-			flb := &FillLineBox{Mode: FillEntireLine, Box: hab}
-
-			folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 100, 100)}
-
-			line, _ := folder.Next(0)
-
-			img := image.NewRGBA(image.Rect(0, 0, 100, 10))
-			err := line.DrawLine(img)
-			if err != nil {
-				t.Fatalf("DrawLine err: %v", err)
-			}
-
-			if inner.drawn.Min.X != tc.expectedX {
-				t.Errorf("Expected X=%d for FillEntireLine %s, got %v", tc.expectedX, tc.name, inner.drawn.Min.X)
-			}
-		})
-	}
-}
-
 func TestHorizontalAlignedBox_FillRestOfLineGeometry(t *testing.T) {
-
 	// Tests FillRestOfLine with left/center/right alignments
 	alignments := []struct {
 		name      string
@@ -454,10 +460,16 @@ func TestHorizontalAlignedBox_FillRestOfLineGeometry(t *testing.T) {
 
 			folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{preceding, flb}}, container: image.Rect(0, 0, 100, 100)}
 
-			line, _ := folder.Next(0)
+			line, err := folder.Next(0)
+			if err != nil {
+				t.Fatalf("folder Next err: %v", err)
+			}
+			if line == nil {
+				t.Fatalf("expected line")
+			}
 
 			img := image.NewRGBA(image.Rect(0, 0, 100, 10))
-			err := line.DrawLine(img)
+			err = line.DrawLine(img)
 			if err != nil {
 				t.Fatalf("DrawLine err: %v", err)
 			}
