@@ -9,13 +9,18 @@ import (
 )
 
 type dummyHAlignBox struct {
-	width       int
-	height      int
-	drawn       image.Rectangle
-	drawCalls   int
+	width  int
+	height int
+	drawn  image.Rectangle
+	drawCalls int
+	lastY     fixed.Int26_6
+	fracWidth fixed.Int26_6
 }
 
 func (d *dummyHAlignBox) AdvanceRect() fixed.Int26_6 {
+	if d.fracWidth != 0 {
+		return d.fracWidth
+	}
 	return fixed.I(d.width)
 }
 
@@ -33,7 +38,9 @@ func (d *dummyHAlignBox) Whitespace() bool {
 func (d *dummyHAlignBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	d.drawn = i.Bounds()
 	d.drawCalls++
+	d.lastY = y
 }
+
 
 func (d *dummyHAlignBox) FontDrawer() *font.Drawer {
 	return nil
@@ -300,9 +307,9 @@ func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.
 
 func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
 	// Case 12: Composition with baseline/vertical alignment
-	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
-	vab := &AlignedBox{Box: hab, Alignment: AlignMiddle}
+	vab := &AlignedBox{Box: hab, Alignment: AlignBottom}
 
 	if vab.AdvanceRect() != inner.AdvanceRect() {
 		t.Errorf("Vertical alignment composition mutated horizontal natural advance: got %v", vab.AdvanceRect())
@@ -316,12 +323,16 @@ func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
 	if inner.drawn.Min.X != 40 {
 		t.Errorf("Horizontal composition inside Vertical alignment failed, expected X=40, got %v", inner.drawn.Min.X)
 	}
+
+	if inner.lastY != fixed.I(10) {
+		t.Errorf("Vertical alignment unexpectedly mutated Y baseline: %v", inner.lastY)
+	}
 }
 
 func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
 	// Case 13: Whole-line positioning composes independently
 
-	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
 
 	boxer := &manualBoxer{boxes: []Box{hab}}
@@ -345,7 +356,7 @@ func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
 	}
 
 	// Now try both
-	inner2 := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	inner2 := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
 	hab2 := &HorizontalAlignedBox{Box: inner2, Alignment: AlignRight}
 
 	preceding := &dummyHAlignBox{width: 20, height: 10}
@@ -487,5 +498,30 @@ func TestHorizontalAlignedBox_NaturalGreaterThanAllocated(t *testing.T) {
 	}
 	if inner.drawn.Min.X != 0 || inner.drawn.Max.X != 100 {
 		t.Errorf("Overflow should pass through un-offset bounds to not mess up scaling, got %v", inner.drawn)
+	}
+}
+
+func TestHorizontalAlignedBox_FractionalAdvanceLeftDefaultEquivalence(t *testing.T) {
+	// Proves that a box with fractional width behaves exactly the same dynamically whether Default or explicitly Left Aligned
+	// And checks fractional rounding semantics.
+	inner1 := &dummyHAlignBox{fracWidth: fixed.I(20) + fixed.I(1)/2, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	inner2 := &dummyHAlignBox{fracWidth: fixed.I(20) + fixed.I(1)/2, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+
+	hab := &HorizontalAlignedBox{Box: inner1, Alignment: AlignLeft}
+
+	img1 := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	img2 := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	dc := &DrawConfig{}
+
+	// Default layout passes a subImage limited by advance exactly when drawn inside SimpleLine!
+	// So we simulate it directly:
+	sub1 := img1.SubImage(image.Rect(0, 0, 21, 10)).(*image.RGBA)
+	sub2 := img2.SubImage(image.Rect(0, 0, 21, 10)).(*image.RGBA)
+
+	hab.DrawBox(sub1, 0, dc)
+	inner2.DrawBox(sub2, 0, dc)
+
+	if inner1.drawn.Min.X != inner2.drawn.Min.X || inner1.drawn.Max.X != inner2.drawn.Max.X {
+		t.Errorf("Explicit AlignLeft fractional geometry %v did not match default un-aligned behavior %v", inner1.drawn, inner2.drawn)
 	}
 }
