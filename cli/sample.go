@@ -119,8 +119,8 @@ func SampleGameMenu() error {
 			),
 		},
 			wordwrap.WithBackgroundColor(bgColor),
-			wordwrap.WithPadding(fixed.R(0, 10<<6, 0, 10<<6)),
-			wordwrap.WithMargin(fixed.R(20<<6, 5<<6, 20<<6, 5<<6)),
+			wordwrap.WithPadding(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(10)}, Max: fixed.Point26_6{X: fixed.I(10)}}),
+			wordwrap.WithMargin(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(5), Y: fixed.I(20)}, Max: fixed.Point26_6{X: fixed.I(5), Y: fixed.I(20)}}),
 			wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
 			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
 				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
@@ -135,17 +135,41 @@ func SampleGameMenu() error {
 				wordwrap.WithFontColor(image.White),
 			),
 		},
-			wordwrap.WithMargin(fixed.R(0, 20<<6, 0, 40<<6)),
+			wordwrap.WithMargin(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(20)}, Max: fixed.Point26_6{X: fixed.I(40)}}),
 			wordwrap.WithHorizontalAlignment(wordwrap.AlignCenter),
 			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
 				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
 			}),
 		),
+
 		menuItem("New Game", false),
 		menuItem("Load Game", false),
 		menuItem("Options", true),
 		menuItem("Quit", false),
+
+		// Demonstrate horizontal alignments
+		wordwrap.NewContainerContent([]*wordwrap.Content{
+			wordwrap.NewContent("Left Aligned Settings", wordwrap.WithFont(grfItem), wordwrap.WithFontColor(image.White)),
+		},
+			wordwrap.WithPadding(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(10)}, Max: fixed.Point26_6{X: fixed.I(10)}}),
+			wordwrap.WithMargin(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(5), Y: fixed.I(20)}, Max: fixed.Point26_6{X: fixed.I(5), Y: fixed.I(20)}}),
+			wordwrap.WithHorizontalAlignment(wordwrap.AlignLeft),
+			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
+				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
+			}),
+		),
+		wordwrap.NewContainerContent([]*wordwrap.Content{
+			wordwrap.NewContent("Right Aligned Profile", wordwrap.WithFont(grfItem), wordwrap.WithFontColor(image.White)),
+		},
+			wordwrap.WithPadding(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(10)}, Max: fixed.Point26_6{X: fixed.I(10)}}),
+			wordwrap.WithMargin(fixed.Rectangle26_6{Min: fixed.Point26_6{X: fixed.I(5), Y: fixed.I(20)}, Max: fixed.Point26_6{X: fixed.I(5), Y: fixed.I(20)}}),
+			wordwrap.WithHorizontalAlignment(wordwrap.AlignRight),
+			wordwrap.WithDecorators(func(b wordwrap.Box) wordwrap.Box {
+				return &wordwrap.FillLineBox{Mode: wordwrap.FillEntireLine, Box: b}
+			}),
+		),
 	}
+
 
 	sw := wordwrap.NewSimpleWrapper(content, grfItem)
 	lines, _, err := sw.TextToRect(i.Bounds())

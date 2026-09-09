@@ -1222,6 +1222,13 @@ func (hab *HorizontalAlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfi
 		}
 
 		subR := image.Rect(bounds.Min.X+offset, bounds.Min.Y, bounds.Min.X+offset+naturalWidth, bounds.Max.Y)
+
+		if naturalWidth == 0 {
+			empty := image.NewRGBA(subR)
+			hab.Box.DrawBox(empty, y, dc)
+			return
+		}
+
 		if !subR.Empty() {
 			subI := i.SubImage(subR).(Image)
 			hab.Box.DrawBox(subI, y, dc)
@@ -1229,6 +1236,39 @@ func (hab *HorizontalAlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfi
 		}
 	}
 	hab.Box.DrawBox(i, y, dc)
+}
+
+func (hab *HorizontalAlignedBox) MetricsRect() font.Metrics {
+	return hab.Box.MetricsRect()
+}
+
+func (hab *HorizontalAlignedBox) Whitespace() bool {
+	return hab.Box.Whitespace()
+}
+
+func (hab *HorizontalAlignedBox) FontDrawer() *font.Drawer {
+	if tb, ok := hab.Box.(interface{ FontDrawer() *font.Drawer }); ok {
+		return tb.FontDrawer()
+	}
+	return nil
+}
+
+func (hab *HorizontalAlignedBox) Len() int {
+	if tb, ok := hab.Box.(interface{ Len() int }); ok {
+		return tb.Len()
+	}
+	return 0
+}
+
+func (hab *HorizontalAlignedBox) TextValue() string {
+	if tb, ok := hab.Box.(interface{ TextValue() string }); ok {
+		return tb.TextValue()
+	}
+	return ""
+}
+
+func (hab *HorizontalAlignedBox) AdvanceRect() fixed.Int26_6 {
+	return hab.Box.AdvanceRect()
 }
 
 func (hab *HorizontalAlignedBox) turnOnBox() {

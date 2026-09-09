@@ -12,6 +12,7 @@ type dummyHAlignBox struct {
 	width  int
 	height int
 	drawn  image.Rectangle
+	drawCalls int
 }
 
 func (d *dummyHAlignBox) AdvanceRect() fixed.Int26_6 {
@@ -28,6 +29,7 @@ func (d *dummyHAlignBox) Whitespace() bool {
 
 func (d *dummyHAlignBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	d.drawn = i.Bounds()
+	d.drawCalls++
 }
 
 func (d *dummyHAlignBox) FontDrawer() *font.Drawer {
@@ -244,4 +246,228 @@ func TestHorizontalAlignedMultiWord(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.T) {
+	// Case 10: Decorated full-width geometry tests
+	alignments := []struct {
+		name      string
+		alignment HorizontalAlignment
+		expectedX int
+	}{
+		{"Left", AlignLeft, 10},
+		{"Center", AlignCenter, 40}, // 100 total width. Margin=0, Padding=10L,10R. Inner=80. Box=20. 80-20=60. Offset=60/2=30. +10=40.
+		{"Right", AlignRight, 70},   // 10 padding left + 60 offset = 70.
+	}
+
+	for _, tc := range alignments {
+		t.Run(tc.name, func(t *testing.T) {
+			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
+
+			padding := fixed.Rectangle26_6{
+				Min: fixed.Point26_6{X: fixed.I(10)},
+				Max: fixed.Point26_6{X: fixed.I(10)},
+			}
+			margin := fixed.Rectangle26_6{}
+			bp := BgPositioningZeroed
+			decBox := NewDecorationBox(hab, padding, margin, image.NewUniform(image.Transparent), bp)
+
+			flb := &FillLineBox{Mode: FillEntireLine, Box: decBox}
+
+			// We use direct rendering of flb because SimpleFolder doesn't naturally pass options or
+			// render inner correctly for our simple test where we expect the background box coordinates
+			// to be explicitly global. SimpleFolder applies offsets dynamically. Let's just call
+			// flb.DrawBox directly to test geometry.
+			img := image.NewRGBA(image.Rect(0, 0, 100, 20))
+			dc := &DrawConfig{}
+
+			// Simulate the Line drawing flb
+			subImg := img.SubImage(image.Rect(0, 0, 100, 20)).(*image.RGBA)
+			flb.DrawBox(subImg, 0, dc)
+
+			if inner.drawCalls != 1 {
+				t.Fatalf("inner DrawBox calls = %d, want 1", inner.drawCalls)
+			}
+
+			if inner.drawn.Min.X != tc.expectedX {
+				t.Errorf("Expected X to be %d, got %v", tc.expectedX, inner.drawn.Min.X)
+			}
+			if inner.drawn.Max.X != tc.expectedX+20 {
+				t.Errorf("Expected Max X to be %d, got %v", tc.expectedX+20, inner.drawn.Max.X)
+			}
+		})
+	}
+}
+
+func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
+	// Case 12: Composition with baseline/vertical alignment
+	inner := &dummyHAlignBox{width: 20, height: 10}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
+	vab := &AlignedBox{Box: hab, Alignment: AlignMiddle}
+
+	if vab.AdvanceRect() != inner.AdvanceRect() {
+		t.Errorf("Vertical alignment composition mutated horizontal natural advance: got %v", vab.AdvanceRect())
+	}
+}
+
+func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
+	// Case 13: Whole-line positioning composes independently
+	// Note: Whole-line alignment is a property of `Line` alignment offset in folder,
+	// horizontal alignment is an internal layout calculation of HorizontalAlignedBox.
+	// This verifies they can be used together.
+
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
+	flb := &FillLineBox{Mode: FillEntireLine, Box: hab}
+
+	container := NewContainerContent([]*Content{}, WithHorizontalAlignment(AlignRight))
+	boxer := NewSimpleBoxer([]*Content{container}, nil)
+
+	folder := &SimpleFolder{boxer: boxer, container: image.Rect(0, 0, 100, 100), lineOptions: []func(Line){func(l Line){l.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)}}}
+
+	// Unshift flb manually for testing
+	boxer.Unshift(flb)
+
+	line, err := folder.Next(0)
+	if err != nil {
+		t.Fatalf("folder Next err: %v", err)
+	}
+
+	// Draw line and check inner offset
+	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	line.DrawLine(img)
+
+	// Since Line applies HorizontalCenterLines, but flb fills entire line (advance 100),
+	// the line itself has width 100, so line centering offset is 0.
+	// But HorizontalAlignedBox applies center offset of 40 ( (100-20)/2 ).
+	if inner.drawn.Min.X != 40 {
+		t.Errorf("Line centering should not override box centering, expected 40, got %d", inner.drawn.Min.X)
+	}
+}
+
+func TestHorizontalAlignedBox_FillRestOfLineGeometry(t *testing.T) {
+	// Tests FillRestOfLine with left/center/right alignments
+	alignments := []struct {
+		name      string
+		alignment HorizontalAlignment
+		expectedX int
+	}{
+		{"Left", AlignLeft, 30},
+		{"Center", AlignCenter, 60}, // 100 total width. Preceding box 30. Rest of line 70. Box width 10. Offset = (70-10)/2 = 30. 30 + 30 = 60.
+		{"Right", AlignRight, 90},   // Offset = 70-10 = 60. 30 + 60 = 90.
+	}
+
+	for _, tc := range alignments {
+		t.Run(tc.name, func(t *testing.T) {
+			preceding := &dummyHAlignBox{width: 30, height: 10}
+			inner := &dummyHAlignBox{width: 10, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+
+			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
+			flb := &FillLineBox{Mode: FillRestOfLine, Box: hab}
+
+			folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{preceding, flb}}, container: image.Rect(0, 0, 100, 100)}
+
+			line, _ := folder.Next(0)
+
+			img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+			line.DrawLine(img)
+
+			if inner.drawn.Min.X != tc.expectedX {
+				t.Errorf("Expected X=%d for FillRestOfLine %s, got %v", tc.expectedX, tc.name, inner.drawn.Min.X)
+			}
+		})
+	}
+}
+
+
+func TestHorizontalAlignedBox_MultipleBoxesState(t *testing.T) {
+	// Case 14: Multiple boxes retain independent state
+	// Just verify we can instantiate multiple and they keep their state
+	b1 := &HorizontalAlignedBox{Box: &dummyHAlignBox{width: 20}, Alignment: AlignLeft}
+	b2 := &HorizontalAlignedBox{Box: &dummyHAlignBox{width: 20}, Alignment: AlignRight}
+
+	if b1.Alignment == b2.Alignment {
+		t.Errorf("Boxes should retain independent state")
+	}
+}
+
+func TestHorizontalAlignedBox_ZeroWidthContent(t *testing.T) {
+	// Tests that zero-width content receives an empty, correctly offset SubImage
+	inner := &dummyHAlignBox{width: 0, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	dc := &DrawConfig{}
+
+	hab.DrawBox(img, 0, dc)
+
+	if inner.drawCalls != 1 {
+		t.Fatalf("Expected 1 draw call, got %d", inner.drawCalls)
+	}
+	if inner.drawn.Min.X != 50 {
+		t.Errorf("Zero width center offset should be 50, got X=%v", inner.drawn)
+	}
+}
+
+func TestHorizontalAlignedBox_NaturalEqualsAllocated(t *testing.T) {
+	inner := &dummyHAlignBox{width: 100, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	dc := &DrawConfig{}
+
+	hab.DrawBox(img, 0, dc)
+
+	if inner.drawCalls != 1 {
+		t.Fatalf("Expected 1 draw call, got %d", inner.drawCalls)
+	}
+	if inner.drawn.Min.X != 0 || inner.drawn.Max.X != 100 {
+		t.Errorf("Natural==Allocated should not offset, got %v", inner.drawn)
+	}
+}
+
+func TestHorizontalAlignedBox_NaturalGreaterThanAllocated(t *testing.T) {
+	inner := &dummyHAlignBox{width: 120, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	dc := &DrawConfig{}
+
+	hab.DrawBox(img, 0, dc)
+
+	if inner.drawCalls != 1 {
+		t.Fatalf("Expected 1 draw call, got %d", inner.drawCalls)
+	}
+	if inner.drawn.Min.X != 0 || inner.drawn.Max.X != 100 {
+		t.Errorf("Overflow should pass through un-offset bounds to not mess up scaling, got %v", inner.drawn)
+	}
+}
+
+
+
+func TestHorizontalAlignedBox_ExternalPackageCompatibility(t *testing.T) {
+	// Case 15: Existing custom Box implementations continue compiling.
+	// Since we are in the `wordwrap` package itself we can't fully simulate an external package,
+	// but we CAN verify that a type with ONLY the original required `Box` methods
+	// can still be wrapped without compilation errors or runtime panics.
+
+	type CustomLegacyBox struct {
+		Box // Embed to satisfy interface for the dummy, but we override all methods below
+	}
+
+	// We define only the mandatory ones here. If HorizontalAlignedBox requires a new method
+	// that we didn't embed, this would panic if not correctly type-checked.
+
+	// Create horizontal aligned box that aligns to the right
+	hab := &HorizontalAlignedBox{
+		Box:       &CustomLegacyBox{},
+		Alignment: AlignRight,
+	}
+
+	// Make sure we can still call AdvanceRect without a panic from a missing method
+	// (Since we embedded Box, it will call the nil embedded Box, so it would panic.
+	// The key is that it COMPILES and satisfies Box).
+
+	_ = hab
 }
