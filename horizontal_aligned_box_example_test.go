@@ -34,21 +34,16 @@ func ExampleHorizontalAlignedBox_center() {
 		Alignment: wordwrap.AlignCenter,
 	}
 
-	// Allocate a layout width of 100px on the line
-	flb := &wordwrap.FillLineBox{
-		Mode: wordwrap.FillEntireLine,
-		Box:  hab,
-	}
-
 	// Create a dummy image and draw config
 	img := image.NewRGBA(image.Rect(0, 0, 100, 20))
 	dc := &wordwrap.DrawConfig{}
 
-	// Because we use FillEntireLine, it passes the 100px width down to the aligned box
+	// Directly supply a 100px allocated SubImage to HorizontalAlignedBox.
+	// (In real usage, this allocation is provided by folding components like FillLineBox)
 	// Center alignment offset: (100 allocated - 20 natural) / 2 = 40.
 	// So inner receives bounds offset by 40: (40, 0) - (60, 20).
 	subImg := img.SubImage(image.Rect(0, 0, 100, 20)).(wordwrap.Image)
-	flb.DrawBox(subImg, 0, dc)
+	hab.DrawBox(subImg, 0, dc)
 
 	// Output:
 	// Drawn Box Bounds: (40,0)-(60,20)
@@ -64,19 +59,15 @@ func ExampleHorizontalAlignedBox_right() {
 		Alignment: wordwrap.AlignRight,
 	}
 
-	// Allocate a layout width of 100px on the line
-	flb := &wordwrap.FillLineBox{
-		Mode: wordwrap.FillEntireLine,
-		Box:  hab,
-	}
-
 	img := image.NewRGBA(image.Rect(0, 0, 100, 20))
 	dc := &wordwrap.DrawConfig{}
 
+	// Directly supply a 100px allocated SubImage to HorizontalAlignedBox.
+	// (In real usage, this allocation is provided by folding components like FillLineBox)
 	// Right alignment offset: (100 allocated - 20 natural) = 80.
 	// So inner receives bounds offset by 80: (80, 0) - (100, 20).
 	subImg := img.SubImage(image.Rect(0, 0, 100, 20)).(wordwrap.Image)
-	flb.DrawBox(subImg, 0, dc)
+	hab.DrawBox(subImg, 0, dc)
 
 	// Output:
 	// Drawn Box Bounds: (80,0)-(100,20)

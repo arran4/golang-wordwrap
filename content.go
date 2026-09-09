@@ -18,7 +18,14 @@ const (
 	AlignBottom
 )
 
-// HorizontalAlignment defines how content is aligned horizontally within its allocated box.
+// HorizontalAlignment defines how natural content is aligned horizontally INSIDE a wider layout-allocated box (e.g., FillLineBox).
+// It composes independently of vertical alignment and whole-line positioning.
+//
+// Key Differences from other alignment axes:
+// - AlignLeft is the zero/default behavior and preserves standard layout drawing.
+// - FillLineBox / FillRestOfLine / FillEntireLine determine the allocated box width on the page.
+// - HorizontalCenterLines / RightLines positions the whole layout line horizontally.
+// - AlignBaseline / AlignTop / AlignMiddle / AlignBottom positions content vertically relative to the text baseline.
 type HorizontalAlignment int
 
 const (
