@@ -1238,39 +1238,6 @@ func (hab *HorizontalAlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfi
 	hab.Box.DrawBox(i, y, dc)
 }
 
-func (hab *HorizontalAlignedBox) MetricsRect() font.Metrics {
-	return hab.Box.MetricsRect()
-}
-
-func (hab *HorizontalAlignedBox) Whitespace() bool {
-	return hab.Box.Whitespace()
-}
-
-func (hab *HorizontalAlignedBox) FontDrawer() *font.Drawer {
-	if tb, ok := hab.Box.(interface{ FontDrawer() *font.Drawer }); ok {
-		return tb.FontDrawer()
-	}
-	return nil
-}
-
-func (hab *HorizontalAlignedBox) Len() int {
-	if tb, ok := hab.Box.(interface{ Len() int }); ok {
-		return tb.Len()
-	}
-	return 0
-}
-
-func (hab *HorizontalAlignedBox) TextValue() string {
-	if tb, ok := hab.Box.(interface{ TextValue() string }); ok {
-		return tb.TextValue()
-	}
-	return ""
-}
-
-func (hab *HorizontalAlignedBox) AdvanceRect() fixed.Int26_6 {
-	return hab.Box.AdvanceRect()
-}
-
 func (hab *HorizontalAlignedBox) turnOnBox() {
 	if b, ok := hab.Box.(interface{ turnOnBox() }); ok {
 		b.turnOnBox()

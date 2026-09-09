@@ -9,10 +9,11 @@ import (
 )
 
 type dummyHAlignBox struct {
-	width  int
-	height int
-	drawn  image.Rectangle
-	drawCalls int
+	width       int
+	height      int
+	drawn       image.Rectangle
+	drawCalls   int
+	naturalDraw bool
 }
 
 func (d *dummyHAlignBox) AdvanceRect() fixed.Int26_6 {
@@ -20,6 +21,9 @@ func (d *dummyHAlignBox) AdvanceRect() fixed.Int26_6 {
 }
 
 func (d *dummyHAlignBox) MetricsRect() font.Metrics {
+	if d.height > 0 {
+		return font.Metrics{Ascent: fixed.I(d.height), Descent: 0}
+	}
 	return font.Metrics{}
 }
 
@@ -262,7 +266,7 @@ func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.
 
 	for _, tc := range alignments {
 		t.Run(tc.name, func(t *testing.T) {
-			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+			inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
 
 			padding := fixed.Rectangle26_6{
@@ -297,42 +301,70 @@ func TestHorizontalAlignedBox_Integration_DecoratedFullWidthGeometry(t *testing.
 
 func TestHorizontalAlignedBox_VerticalAlignmentComposition(t *testing.T) {
 	// Case 12: Composition with baseline/vertical alignment
-	inner := &dummyHAlignBox{width: 20, height: 10}
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
 	vab := &AlignedBox{Box: hab, Alignment: AlignMiddle}
 
 	if vab.AdvanceRect() != inner.AdvanceRect() {
 		t.Errorf("Vertical alignment composition mutated horizontal natural advance: got %v", vab.AdvanceRect())
 	}
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 20))
+	dc := &DrawConfig{}
+
+	vab.DrawBox(img, fixed.I(10), dc)
+
+	if inner.drawn.Min.X != 40 {
+		t.Errorf("Horizontal composition inside Vertical alignment failed, expected X=40, got %v", inner.drawn.Min.X)
+	}
 }
 
 func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
 	// Case 13: Whole-line positioning composes independently
 
-	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	inner := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
-	flb := &FillLineBox{Mode: FillEntireLine, Box: hab}
 
-	container := NewContainerContent([]*Content{}, WithHorizontalAlignment(AlignRight))
-	boxer := NewSimpleBoxer([]*Content{container}, nil)
-
-	folder := &SimpleFolder{boxer: boxer, container: image.Rect(0, 0, 100, 100), lineOptions: []func(Line){func(l Line){l.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)}}}
-
-	boxer.Unshift(flb)
-
+	boxer := &manualBoxer{boxes: []Box{hab}}
+	folder := &SimpleFolder{boxer: boxer, container: image.Rect(0, 0, 100, 100)}
 	line, err := folder.Next(0)
 	if err != nil {
 		t.Fatalf("folder Next err: %v", err)
 	}
 
+	sw := &SimpleWrapper{}
 	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
-	err = line.DrawLine(img)
+
+	line.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)
+	err = sw.RenderLines(img, []Line{line}, img.Bounds().Min)
 	if err != nil {
-		t.Fatalf("DrawLine err: %v", err)
+		t.Fatalf("RenderLines err: %v", err)
 	}
 
 	if inner.drawn.Min.X != 40 {
-		t.Errorf("Line centering should not override box centering, expected 40, got %d", inner.drawn.Min.X)
+		t.Errorf("Line centering offset should be 40, got %d", inner.drawn.Min.X)
+	}
+
+	// Now try both
+	inner2 := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	hab2 := &HorizontalAlignedBox{Box: inner2, Alignment: AlignRight}
+
+	preceding := &dummyHAlignBox{width: 20, height: 10}
+
+	flb := &FillLineBox{Mode: FillRestOfLine, Box: hab2}
+	folder2 := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{preceding, flb}}, container: image.Rect(0, 0, 100, 100)}
+
+	line2, _ := folder2.Next(0)
+	line2.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)
+
+	img2 := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	err = sw.RenderLines(img2, []Line{line2}, img2.Bounds().Min)
+	if err != nil {
+		t.Fatalf("RenderLines err: %v", err)
+	}
+
+	if inner2.drawn.Min.X != 80 {
+		t.Errorf("Content right offset should be 80, got %d", inner2.drawn.Min.X)
 	}
 }
 
@@ -351,7 +383,7 @@ func TestHorizontalAlignedBox_FillRestOfLineGeometry(t *testing.T) {
 	for _, tc := range alignments {
 		t.Run(tc.name, func(t *testing.T) {
 			preceding := &dummyHAlignBox{width: 30, height: 10}
-			inner := &dummyHAlignBox{width: 10, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+			inner := &dummyHAlignBox{width: 10, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 
 			hab := &HorizontalAlignedBox{Box: inner, Alignment: tc.alignment}
 			flb := &FillLineBox{Mode: FillRestOfLine, Box: hab}
@@ -381,11 +413,35 @@ func TestHorizontalAlignedBox_MultipleBoxesState(t *testing.T) {
 	if b1.Alignment == b2.Alignment {
 		t.Errorf("Boxes should retain independent state")
 	}
+
+	// Put two aligned boxes on one line with separate retained allocations
+	inner1 := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	hab1 := &HorizontalAlignedBox{Box: inner1, Alignment: AlignLeft}
+
+	inner2 := &dummyHAlignBox{width: 20, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
+	hab2 := &HorizontalAlignedBox{Box: inner2, Alignment: AlignRight}
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
+	dc := &DrawConfig{}
+
+	sub1 := img.SubImage(image.Rect(0, 0, 50, 10)).(*image.RGBA)
+	hab1.DrawBox(sub1, 0, dc)
+
+	sub2 := img.SubImage(image.Rect(50, 0, 100, 10)).(*image.RGBA)
+	hab2.DrawBox(sub2, 0, dc)
+
+	if inner1.drawn.Min.X != 0 {
+		t.Errorf("Left aligned box in Slot 1 should be X=0, got %d", inner1.drawn.Min.X)
+	}
+
+	if inner2.drawn.Min.X != 80 {
+		t.Errorf("Right aligned box in Slot 2 should be X=80, got %d", inner2.drawn.Min.X)
+	}
 }
 
 func TestHorizontalAlignedBox_ZeroWidthContent(t *testing.T) {
 	// Tests that zero-width content receives an empty, correctly offset SubImage
-	inner := &dummyHAlignBox{width: 0, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	inner := &dummyHAlignBox{width: 0, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
 
 	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
@@ -402,7 +458,7 @@ func TestHorizontalAlignedBox_ZeroWidthContent(t *testing.T) {
 }
 
 func TestHorizontalAlignedBox_NaturalEqualsAllocated(t *testing.T) {
-	inner := &dummyHAlignBox{width: 100, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	inner := &dummyHAlignBox{width: 100, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
 
 	img := image.NewRGBA(image.Rect(0, 0, 100, 10))
@@ -419,7 +475,7 @@ func TestHorizontalAlignedBox_NaturalEqualsAllocated(t *testing.T) {
 }
 
 func TestHorizontalAlignedBox_NaturalGreaterThanAllocated(t *testing.T) {
-	inner := &dummyHAlignBox{width: 120, height: 10, drawn: image.Rect(-1,-1,-1,-1), drawCalls: 0}
+	inner := &dummyHAlignBox{width: 120, height: 10, drawn: image.Rect(-1, -1, -1, -1), drawCalls: 0}
 	hab := &HorizontalAlignedBox{Box: inner, Alignment: AlignCenter}
 
 	img := image.NewRGBA(image.Rect(0, 0, 100, 10))

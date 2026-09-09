@@ -170,7 +170,6 @@ func SampleGameMenu() error {
 		),
 	}
 
-
 	sw := wordwrap.NewSimpleWrapper(content, grfItem)
 	lines, _, err := sw.TextToRect(i.Bounds())
 	if err != nil {
