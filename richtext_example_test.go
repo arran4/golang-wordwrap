@@ -55,8 +55,8 @@ func Example_richTextComprehensive() {
 				return color.Transparent, 0
 			}
 
-			// Stone Color: Lighter variations for readability
-			grey := 220 + int(hash%35)
+			// Stone Color: Much lighter variations for readability so it doesn't overwhelm text
+			grey := 240 + int(hash%15)
 			col := color.RGBA{uint8(grey), uint8(grey), uint8(grey), 255}
 
 			// Shading (diffuse)
