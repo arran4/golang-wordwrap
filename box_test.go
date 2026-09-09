@@ -3,12 +3,14 @@ package wordwrap
 import (
 	"image"
 	"image/color"
+	"image/draw"
 	"reflect"
 	"testing"
 
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 func TestSimpleBoxer_BoxNextWord(t *testing.T) {
@@ -351,5 +353,86 @@ func TestImageBoxMetricsInSimpleBoxer(t *testing.T) {
 	}
 	if m.Height.Ceil() != 30 {
 		t.Errorf("Expected height to be 30, got %d", m.Height.Ceil())
+	}
+}
+
+
+// Minimal mock for testing BackgroundBox DrawBox bounds logic
+type mockMetricsBox struct {
+	dummyBox // embed to inherit other methods if any exist in the same package
+	ascent  int
+	descent int
+	drawnY  fixed.Int26_6
+	drawnDc *DrawConfig
+}
+
+func (m *mockMetricsBox) AdvanceRect() fixed.Int26_6 {
+	return fixed.I(20)
+}
+
+func (m *mockMetricsBox) MetricsRect() font.Metrics {
+	return font.Metrics{
+		Ascent:  fixed.I(m.ascent),
+		Descent: fixed.I(m.descent),
+	}
+}
+
+func (m *mockMetricsBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	m.drawnY = y
+	m.drawnDc = dc
+}
+
+func (m *mockMetricsBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
+	return fixed.I(20), fixed.I(m.ascent + m.descent)
+}
+
+func (m *mockMetricsBox) MinSize() (fixed.Int26_6, fixed.Int26_6) {
+	return fixed.I(20), fixed.I(m.ascent + m.descent)
+}
+
+func TestBackgroundBox_DrawBox_BoundsClipsToMetrics(t *testing.T) {
+	inner := &mockMetricsBox{ascent: 15, descent: 5}
+
+	// Solid red background to paint
+	bgSrc := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	draw.Draw(bgSrc, bgSrc.Bounds(), &image.Uniform{color.RGBA{255, 0, 0, 255}}, image.Point{}, draw.Src)
+
+	bb := &BackgroundBox{
+		Box:           inner,
+		Background:    bgSrc,
+		BgPositioning: BgPositioningPassThrough,
+	}
+
+	// The line provides a full canvas, taller than the inner box
+	img := image.NewRGBA(image.Rect(0, 0, 100, 50))
+	// Initialize image to transparent black (0,0,0,0)
+
+	dc := &DrawConfig{}
+
+	// Draw at baseline Y=30
+	y := fixed.I(30)
+
+	bb.DrawBox(img, y, dc)
+
+	if inner.drawnY != y {
+		t.Errorf("Expected inner box to be drawn at Y=%v, got %v", y, inner.drawnY)
+	}
+
+	// Expected drawn region is Min.Y + (30 - 15) = 15 to Min.Y + (30 + 5) = 35
+	// Check a pixel outside this region (e.g., Y=14 and Y=36)
+	cTop := img.RGBAAt(10, 14)
+	if cTop.A != 0 {
+		t.Errorf("Expected pixel above bounds (Y=14) to remain empty, got %v", cTop)
+	}
+
+	cBottom := img.RGBAAt(10, 36)
+	if cBottom.A != 0 {
+		t.Errorf("Expected pixel below bounds (Y=36) to remain empty, got %v", cBottom)
+	}
+
+	// Check a pixel inside this region (e.g., Y=20)
+	cInside := img.RGBAAt(10, 20)
+	if cInside.R != 255 || cInside.A != 255 {
+		t.Errorf("Expected pixel inside bounds (Y=20) to be painted red, got %v", cInside)
 	}
 }
