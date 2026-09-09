@@ -9,6 +9,7 @@ import (
 	"github.com/arran4/golang-wordwrap/util"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 func TestSimpleBoxer_BoxNextWord(t *testing.T) {
@@ -351,5 +352,99 @@ func TestImageBoxMetricsInSimpleBoxer(t *testing.T) {
 	}
 	if m.Height.Ceil() != 30 {
 		t.Errorf("Expected height to be 30, got %d", m.Height.Ceil())
+	}
+}
+
+// Minimal mock for testing BackgroundBox DrawBox bounds logic
+type mockMetricsBox struct {
+	dummyBox // embed to inherit other methods if any exist in the same package
+	ascent   int
+	descent  int
+	drawnY   fixed.Int26_6
+	drawnDc  *DrawConfig
+}
+
+func (m *mockMetricsBox) AdvanceRect() fixed.Int26_6 {
+	return fixed.I(20)
+}
+
+func (m *mockMetricsBox) MetricsRect() font.Metrics {
+	return font.Metrics{
+		Ascent:  fixed.I(m.ascent),
+		Descent: fixed.I(m.descent),
+	}
+}
+
+func (m *mockMetricsBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	m.drawnY = y
+	m.drawnDc = dc
+}
+
+func (m *mockMetricsBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
+	return fixed.I(20), fixed.I(m.ascent + m.descent)
+}
+
+func (m *mockMetricsBox) MinSize() (fixed.Int26_6, fixed.Int26_6) {
+	return fixed.I(20), fixed.I(m.ascent + m.descent)
+}
+
+func TestBackgroundBox_DrawBox_BoundsClipsToMetrics(t *testing.T) {
+	inner := &mockMetricsBox{ascent: 15, descent: 5}
+
+	// Create a deterministic pattern image (gradient/stripes)
+	// so we can verify PassThrough sampling didn't shift
+	bgSrc := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 100; x++ {
+			bgSrc.SetRGBA(x, y, color.RGBA{uint8(x), uint8(y), 0, 255})
+		}
+	}
+
+	bb := &BackgroundBox{
+		Box:           inner,
+		Background:    bgSrc,
+		BgPositioning: BgPositioningPassThrough,
+	}
+
+	// The line provides a full canvas, taller than the inner box
+	// We'll create it as a sub-image to verify bounds.Min shifting works correctly too
+	fullImg := image.NewRGBA(image.Rect(0, 0, 200, 200))
+	img := fullImg.SubImage(image.Rect(10, 20, 110, 70)).(Image) // Bounds: X:10->110, Y:20->70
+
+	dc := &DrawConfig{}
+
+	// Draw at baseline Y=30 (relative to bounds.Min.Y=20, so drawn Y=50)
+	y := fixed.I(30)
+
+	bb.DrawBox(img, y, dc)
+
+	if inner.drawnY != y {
+		t.Errorf("Expected inner box to be drawn at Y=%v, got %v", y, inner.drawnY)
+	}
+
+	// Expected drawn region is Min.Y + (30 - 15) = 20 + 15 = 35
+	// to Min.Y + (30 + 5) = 20 + 35 = 55
+	// Check a pixel outside this region (e.g., Y=34 and Y=56)
+	cTop := fullImg.RGBAAt(20, 34)
+	if cTop.A != 0 {
+		t.Errorf("Expected pixel above bounds (Y=34) to remain empty, got %v", cTop)
+	}
+
+	cBottom := fullImg.RGBAAt(20, 56)
+	if cBottom.A != 0 {
+		t.Errorf("Expected pixel below bounds (Y=56) to remain empty, got %v", cBottom)
+	}
+
+	// Check a pixel inside this region (e.g., Y=40, X=20)
+	cInside := fullImg.RGBAAt(20, 40)
+	if cInside.A != 255 {
+		t.Errorf("Expected pixel inside bounds (X=20, Y=40) to be painted, got %v", cInside)
+	}
+
+	// Verify PassThrough semantics: Source coordinate should match destination coordinate
+	// For PassThrough, if we sample destination X=20, Y=40, it should correspond to bgSrc X=20, Y=40
+	expectedColor := color.RGBA{uint8(20), uint8(40), 0, 255}
+	if cInside != expectedColor {
+		t.Errorf("PassThrough sampling shifted! Expected %v, got %v at X=20, Y=40", expectedColor, cInside)
 	}
 }

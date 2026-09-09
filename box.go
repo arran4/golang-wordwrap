@@ -1072,25 +1072,33 @@ func (b *BackgroundBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 }
 
 func (bb *BackgroundBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
+	// Restrict the bounds to the actual vertical extent of the content (MetricsRect)
+	m := bb.MetricsRect()
 	bounds := i.Bounds()
+
+	// y is relative to bounds.Min.Y but let's use the actual drawn coordinates
+	// The line passes a sub-image with full line height bounds, but the background should only cover this box's vertical extent
+
+	minY := bounds.Min.Y + (y - m.Ascent).Floor()
+	maxY := bounds.Min.Y + (y + m.Descent).Ceil()
+
+	bgBounds := image.Rect(bounds.Min.X, minY, bounds.Max.X, maxY)
+
+	// Intersect with actual bounds just in case
+	bgBounds = bgBounds.Intersect(bounds)
+
 	srcPoint := image.Point{}
 	switch bb.BgPositioning {
 	case BgPositioningPassThrough:
-		srcPoint = bounds.Min
+		srcPoint = bgBounds.Min
 	case BgPositioningZeroed:
 		srcPoint = image.Point{}
 	case BgPositioningSection5Zeroed:
-		// Since BackgroundBox usually wraps the content directly with no padding/margin difference in this context,
-		// Section5Zeroed (content relative) is equivalent to Zeroed (box relative) if no margin/pad.
-		// Or effectively 0,0 relative to Bounds.Min?
-		// Section5Zeroed means "Match section 5 (content) starting position with coordinates 0, 0".
-		// Here, content starts at bounds.Min. so 0 = bounds.Min - bounds.Min + srcPoint.
-		// srcPoint = 0.
 		srcPoint = image.Point{}
 	}
 
 	// Draw background
-	draw.Draw(i, bounds, bb.Background, srcPoint, draw.Over)
+	draw.Draw(i, bgBounds, bb.Background, srcPoint, draw.Over)
 	// Draw content
 	bb.Box.DrawBox(i, y, dc)
 	if bb.boxBox {
@@ -1183,8 +1191,32 @@ func (b *AlignedBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 	return b.Box.MaxSize()
 }
 
+func (ab *AlignedBox) MetricsRect() font.Metrics {
+	m := ab.Box.MetricsRect()
+	h := m.Ascent + m.Descent
+
+	switch ab.Alignment {
+	case AlignTop:
+		m.Ascent = h
+		m.Descent = 0
+	case AlignMiddle:
+		m.Ascent = fixed.I(h.Ceil() / 2)
+		m.Descent = h - m.Ascent
+	case AlignBottom:
+		m.Ascent = 0
+		m.Descent = h
+	case AlignBaseline:
+		// Do nothing
+	}
+	return m
+}
+
 func (ab *AlignedBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
-	ab.Box.DrawBox(i, y, dc)
+	m := ab.Box.MetricsRect()
+	alignedM := ab.MetricsRect()
+
+	innerY := y - alignedM.Ascent + m.Ascent
+	ab.Box.DrawBox(i, innerY, dc)
 }
 
 // turnOnBox draws a box around the box
