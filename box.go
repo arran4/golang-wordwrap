@@ -11,12 +11,11 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// Box represents a non-divisible unit of content (e.g., a word or image), which can be nested.
-
 func hasInsets(rect fixed.Rectangle26_6) bool {
 	return rect.Min.X != 0 || rect.Min.Y != 0 || rect.Max.X != 0 || rect.Max.Y != 0
 }
 
+// Box represents a non-divisible unit of content (e.g., a word or image), which can be nested.
 type Box interface {
 	// AdvanceRect returns the width of the content.
 	AdvanceRect() fixed.Int26_6
