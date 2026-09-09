@@ -357,7 +357,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 						Alignment: currentContent.style.HorizontalAlignment,
 					}
 				}
-				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
+				if currentContent.style.Padding.Max.X > 0 || currentContent.style.Padding.Max.Y > 0 || currentContent.style.Padding.Min.X > 0 || currentContent.style.Padding.Min.Y > 0 || currentContent.style.Margin.Max.X > 0 || currentContent.style.Margin.Max.Y > 0 || currentContent.style.Margin.Min.X > 0 || currentContent.style.Margin.Min.Y > 0 {
 					bg := currentContent.style.BackgroundColor
 					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 				}
@@ -413,7 +413,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 						Alignment: currentContent.style.HorizontalAlignment,
 					}
 				}
-				if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
+				if currentContent.style.Padding.Max.X > 0 || currentContent.style.Padding.Max.Y > 0 || currentContent.style.Padding.Min.X > 0 || currentContent.style.Padding.Min.Y > 0 || currentContent.style.Margin.Max.X > 0 || currentContent.style.Margin.Max.Y > 0 || currentContent.style.Margin.Min.X > 0 || currentContent.style.Margin.Min.Y > 0 {
 					bg := currentContent.style.BackgroundColor
 					b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 				}
@@ -507,7 +507,7 @@ func (sb *SimpleBoxer) Next() (Box, int, error) {
 					Alignment: currentContent.style.HorizontalAlignment,
 				}
 			}
-			if !currentContent.style.Padding.Empty() || !currentContent.style.Margin.Empty() {
+			if currentContent.style.Padding.Max.X > 0 || currentContent.style.Padding.Max.Y > 0 || currentContent.style.Padding.Min.X > 0 || currentContent.style.Padding.Min.Y > 0 || currentContent.style.Margin.Max.X > 0 || currentContent.style.Margin.Max.Y > 0 || currentContent.style.Margin.Min.X > 0 || currentContent.style.Margin.Min.Y > 0 {
 				bg := currentContent.style.BackgroundColor
 				b = NewDecorationBox(b, currentContent.style.Padding, currentContent.style.Margin, bg, currentContent.style.BgPositioning)
 			}
