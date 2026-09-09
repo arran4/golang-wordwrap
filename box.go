@@ -1073,7 +1073,7 @@ func (b *BackgroundBox) MaxSize() (fixed.Int26_6, fixed.Int26_6) {
 
 func (bb *BackgroundBox) DrawBox(i Image, y fixed.Int26_6, dc *DrawConfig) {
 	// Restrict the bounds to the actual vertical extent of the content (MetricsRect)
-	m := bb.Box.MetricsRect()
+	m := bb.MetricsRect()
 	bounds := i.Bounds()
 
 	// y is relative to bounds.Min.Y but let's use the actual drawn coordinates
