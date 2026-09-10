@@ -100,9 +100,9 @@ func TestExternalCustomWrapperBehavior(t *testing.T) {
 	boxer := wordwrap.NewSimpleBoxer([]*wordwrap.Content{wordwrap.NewContent("hello world test")}, fd)
 	// Apply descent overflow for this specific wrapper test using FolderOption cast
 	opt := wordwrap.YOverflow(wordwrap.DescentOverflow).(wordwrap.FolderOption)
-	folder := wordwrap.NewSimpleFolder(boxer, image.Rect(0, 0, 50, 100), nil, opt)
+	wrapper := &customExternalWrapper{folder: wordwrap.NewSimpleFolder(boxer, image.Rect(0, 0, 50, 100), nil, opt)}
 
-	line, err := folder.Next(10)
+	line, err := wrapper.folder.Next(10)
 	if err != nil {
 		t.Fatalf("Failed to get line: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestExternalCustomWrapperBehavior(t *testing.T) {
 	}
 
 	// Verify we can access YOverflowMode
-	if folder.YOverflowMode() != wordwrap.DescentOverflow {
+	if wrapper.folder.YOverflowMode() != wordwrap.DescentOverflow {
 		t.Fatalf("Expected DescentOverflow mode to be accessible and correct")
 	}
 
@@ -135,8 +135,8 @@ func TestExternalCustomWrapperBehavior(t *testing.T) {
 	}
 
 	// Make sure setting page break externally works and is readable
-	folder.SetPageBreakBox(&wordwrap.LineBreakBox{})
-	if folder.GetPageBreakBox() == nil {
+	wrapper.folder.SetPageBreakBox(&wordwrap.LineBreakBox{})
+	if wrapper.folder.GetPageBreakBox() == nil {
 		t.Fatalf("Expected PageBreakBox to be set")
 	}
 }
