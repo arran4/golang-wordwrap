@@ -9,9 +9,6 @@ on:
     # semantic version tags + rc/beta snapshots
     tags:
       - 'v*'
-      - 'v*.*.*'
-      - 'v*.*.*-rc*'
-      - 'v*.*.*-beta*'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, closed]
     branches: [main, master]
@@ -63,9 +60,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run Routing Regression Test
-        run: python3 test_routing.py
+        run: ./.github/scripts/test_route.sh
 
   route:
     name: Route event
@@ -78,6 +75,7 @@ jobs:
       is_monthly: ${{ steps.route.outputs.is_monthly }}
       is_nightly: ${{ steps.route.outputs.is_nightly }}
     steps:
+      - uses: actions/checkout@v7
       - id: route
         shell: bash
         env:
@@ -88,69 +86,7 @@ jobs:
           INPUT_MODE: ${{ inputs.mode }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           REF_TYPE: ${{ github.ref_type }}
-        run: |
-          set -euo pipefail
-
-          run_code_checks=false
-          run_pr_meta_checks=false
-          run_cleanup=false
-          run_release=false
-          is_monthly=false
-          is_nightly=false
-
-          case "$EVENT_NAME" in
-            push)
-              run_code_checks=true
-              if [[ "$REF" == refs/tags/v* ]]; then
-                run_release=true
-              fi
-              ;;
-            pull_request)
-              if [[ "$EVENT_ACTION" == "closed" ]]; then
-                run_cleanup=true
-              else
-                run_pr_meta_checks=true
-                run_code_checks=true
-              fi
-              ;;
-            workflow_dispatch)
-              run_code_checks=true
-              case "$INPUT_MODE" in
-                lint-fix)
-                  is_nightly=true
-                  ;;
-                release-*)
-                  run_release=true
-                  ;;
-                publish-tag)
-                  if [[ "$REF_TYPE" != "tag" || ! "$REF" =~ ^refs/tags/v.* ]]; then
-                    echo "publish-tag mode requires an eligible tag context (e.g. refs/tags/v*)" >&2
-                    exit 1
-                  fi
-                  run_release=true
-                  ;;
-                monthly-maintenance)
-                  is_monthly=true
-                  ;;
-              esac
-              ;;
-            schedule)
-              run_code_checks=true
-              if [[ "$EVENT_SCHEDULE" == "17 3 1 * *" ]]; then
-                is_monthly=true
-              fi
-              if [[ "$EVENT_SCHEDULE" == "41 2 * * *" ]]; then
-                is_nightly=true
-              fi
-              ;;
-          esac
-
-          echo "run_code_checks=$run_code_checks" >> "$GITHUB_OUTPUT"
-          echo "run_pr_meta_checks=$run_pr_meta_checks" >> "$GITHUB_OUTPUT"
-          echo "run_cleanup=$run_cleanup" >> "$GITHUB_OUTPUT"
-          echo "run_release=$run_release" >> "$GITHUB_OUTPUT"
-          echo "is_monthly=$is_monthly" >> "$GITHUB_OUTPUT"
-          echo "is_nightly=$is_nightly" >> "$GITHUB_OUTPUT"
+        run: ./.github/scripts/route.sh
 
   prepare-release-tag:
     name: Prepare release tag
@@ -160,14 +96,15 @@ jobs:
     outputs:
       release_tag: ${{ steps.tag.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
       - name: Setup git-tag-inc
         if: ${{ inputs.mode != 'publish-tag' }}
-        uses: arran4/git-tag-inc-action@v1
-        with:
-          mode: install
+        run: go install github.com/arran4/git-tag-inc/cmd/git-tag-inc@latest
       - id: tag
         shell: bash
         env:
@@ -177,12 +114,12 @@ jobs:
           INPUT_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
+          export PATH="$(go env GOPATH)/bin:$PATH"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [[ "$EVENT_NAME" == "push" ]]; then
             echo "release_tag=$REF_NAME" >> "$GITHUB_OUTPUT"
-            echo "next_version=$REF_NAME" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -191,7 +128,6 @@ jobs:
 
           if [[ "$MODE" == "publish-tag" ]]; then
             echo "release_tag=$REF_NAME" >> "$GITHUB_OUTPUT"
-            echo "next_version=$REF_NAME" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -209,38 +145,11 @@ jobs:
               release-alpha) level="patch"; suffix="alpha" ;;
               *) echo "Unsupported release mode: $MODE"; exit 1 ;;
             esac
-            if command -v git-tag-inc >/dev/null 2>&1; then
-              level="${level#-}"
-              args=(-print-version-only "$level")
-              [[ -n "$suffix" ]] && args+=("$suffix")
-              next_tag=$(git-tag-inc "${args[@]}")
-            else
-              git fetch --tags --force
-              latest=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -n 1)
-              [[ -z "$latest" ]] && latest='0.0.0'
 
-              if command -v npx >/dev/null 2>&1; then
-                case "$level" in
-                  major) bumped=$(npx --yes semver "$latest" -i major) ;;
-                  minor) bumped=$(npx --yes semver "$latest" -i minor) ;;
-                  *) bumped=$(npx --yes semver "$latest" -i patch) ;;
-                esac
-                next_tag="v${bumped}"
-              else
-                base="${latest%%-*}"
-                IFS='.' read -r maj min pat <<< "$base"
-                case "$level" in
-                  major) maj=$((maj+1)); min=0; pat=0 ;;
-                  minor) min=$((min+1)); pat=0 ;;
-                  *) pat=$((pat+1)) ;;
-                esac
-                next_tag="v${maj}.${min}.${pat}"
-              fi
-
-              if [[ -n "$suffix" ]]; then
-                next_tag="${next_tag}-${suffix}.1"
-              fi
-            fi
+            level="${level#-}"
+            args=(-print-version-only "$level")
+            [[ -n "$suffix" ]] && args+=("$suffix")
+            next_tag=$(git-tag-inc "${args[@]}")
           fi
 
           [[ "$next_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]] || {
@@ -250,7 +159,11 @@ jobs:
 
           git fetch --tags --force
           if git rev-parse "$next_tag" >/dev/null 2>&1; then
-            REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/$next_tag" | awk '{print $1}')
+            REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/$next_tag^{}" | awk '{print $1}')
+            if [[ -z "$REMOTE_TAG_SHA" ]]; then
+              REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/$next_tag" | awk '{print $1}')
+            fi
+
             if [[ "$REMOTE_TAG_SHA" == "${GITHUB_SHA}" ]]; then
               echo "Tag $next_tag exists and points to GITHUB_SHA. Safe to retry."
             else
@@ -279,7 +192,7 @@ jobs:
       has_dart_or_flutter_tests: ${{ steps.detect.outputs.has_dart_or_flutter_tests }}
       has_packaging: ${{ steps.detect.outputs.has_packaging }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: detect
         shell: bash
@@ -325,10 +238,10 @@ jobs:
     if: ${{ needs.route.outputs.run_cleanup != 'true' && (needs.route.outputs.is_nightly == 'true' || needs.route.outputs.is_monthly == 'true') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -338,8 +251,8 @@ jobs:
     if: ${{ needs.discover.outputs.has_go == 'true' && needs.route.outputs.run_code_checks == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: golangci-lint
@@ -357,8 +270,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -371,8 +284,8 @@ jobs:
     if: ${{ needs.discover.outputs.has_go == 'true' && needs.route.outputs.run_code_checks == 'true' && needs.discover.outputs.profile == 'public' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -387,8 +300,8 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Run go fmt
@@ -417,11 +330,11 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Go (if needed)
         if: ${{ needs.discover.outputs.has_go == 'true' }}
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
@@ -472,7 +385,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PARENT_PR: ${{ github.event.pull_request.number }}
@@ -487,7 +400,7 @@ jobs:
 
   release-validation:
     name: Release Validation Gate
-    needs: [route, discover, golangci, go-test, go-vet]
+    needs: [route, routing-test, discover, golangci, go-test, go-vet]
     if: |
       !failure() && !cancelled() &&
       needs.route.result == 'success' &&
@@ -508,7 +421,7 @@ jobs:
     outputs:
       release_tag: ${{ steps.export.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -594,15 +507,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: '~> v2'
