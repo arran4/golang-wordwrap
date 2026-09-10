@@ -67,6 +67,10 @@ jobs:
         run: ./.github/scripts/test_verify_tag.sh
       - name: Run Exact Main Test
         run: ./.github/scripts/test_verify_exact_main.sh
+      - name: Run Job Reachability Test
+        run: |
+          pip install pyyaml
+          python3 ./.github/scripts/test_job_reachability.py
 
   route:
     name: Route event
