@@ -5,8 +5,6 @@ set -euo pipefail
 TAG="$1"
 EXPECTED_SHA="$2"
 
-git fetch --tags --force origin 2>/dev/null || true
-
 # Check peeled annotated tag first
 REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/${TAG}^{}" | awk '{print $1}')
 if [[ -z "$REMOTE_TAG_SHA" ]]; then

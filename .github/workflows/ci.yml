@@ -67,6 +67,8 @@ jobs:
         run: ./.github/scripts/test_verify_tag.sh
       - name: Run Exact Main Test
         run: ./.github/scripts/test_verify_exact_main.sh
+      - name: Run Release Planning Test
+        run: ./.github/scripts/test_plan_release.sh
       - name: Run Job Reachability Test
         run: |
           pip install pyyaml
@@ -213,36 +215,6 @@ jobs:
           cache: true
       - run: go vet ./...
 
-  go-fmt-pr:
-    name: go fmt -> PR (manual dispatch)
-    needs: [route, discover]
-    if: ${{ needs.discover.outputs.has_go == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'lint-fix' && inputs.allow_prs == true }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - name: Run go fmt
-        run: go fmt ./...
-      - name: Create PR if go fmt changed files
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          git diff --quiet && { echo "No fmt changes"; exit 0; }
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          BRANCH="ci/gofmt/${{ github.run_id }}"
-          git checkout -b "$BRANCH"
-          git add -A
-          git commit -m "ci: go fmt"
-          git push origin "$BRANCH"
-          gh pr create --title "ci: go fmt" --body "Automated go fmt from manual dispatch." --base main --head "$BRANCH" --label "ci-autofix"
-
   autofix:
     name: Auto-format and open PR
     needs: [route, discover]
@@ -360,34 +332,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          MODE="$INPUT_MODE"
-          OVERRIDE="$INPUT_RELEASE_VERSION_OVERRIDE"
-
-          if [[ -n "$OVERRIDE" ]]; then
-            # Accept "1.2.3" or "v1.2.3" override input.
-            OVERRIDE="${OVERRIDE#v}"
-            next_tag="v$OVERRIDE"
-          else
-            case "$MODE" in
-              release-major) level="major"; suffix="" ;;
-              release-minor) level="minor"; suffix="" ;;
-              release-patch) level="patch"; suffix="" ;;
-              release-test)  level="patch"; suffix="test" ;;
-              release-rc)    level="patch"; suffix="rc" ;;
-              release-alpha) level="patch"; suffix="alpha" ;;
-              *) echo "Unsupported release mode: $MODE"; exit 1 ;;
-            esac
-
-            level="${level#-}"
-            args=(-print-version-only "$level")
-            [[ -n "$suffix" ]] && args+=("$suffix")
-            next_tag=$(git-tag-inc "${args[@]}")
-          fi
-
-          [[ "$next_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]] || {
-            echo "Invalid tag format: $next_tag" >&2
-            exit 1
-          }
+          next_tag=$(./.github/scripts/plan_release.sh "$INPUT_MODE" "$INPUT_RELEASE_VERSION_OVERRIDE")
 
           set +e
           ./.github/scripts/verify_tag.sh "$next_tag" "${GITHUB_SHA}"
