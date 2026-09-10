@@ -65,4 +65,8 @@ run_test "Exact main success" "refs/heads/main" "$SHA_STALE" 0
 # 3. Stale-main SHA rejection (using SHA_MAIN which is behind origin/main)
 run_test "Stale main rejection" "refs/heads/main" "$SHA_MAIN" 1
 
+# 4. Fetch failure rejection (break remote, use stale SHA_MAIN)
+git remote set-url origin /tmp/does-not-exist.git
+run_test "Fetch failure rejection" "refs/heads/main" "$SHA_MAIN" 1
+
 echo "All exact main verification tests passed."

@@ -1,18 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-run_code_checks=false
+run_code_checks=true
 run_pr_meta_checks=false
 run_cleanup=false
 run_release=false
+run_publisher=false
 is_monthly=false
 is_nightly=false
 
 case "$EVENT_NAME" in
   push)
-    run_code_checks=true
-    if [[ "$REF" == refs/tags/v* ]]; then
-      run_release=true
+    if [[ "$REF_TYPE" == "tag" && "$REF" == refs/tags/v* ]]; then
+      run_publisher=true
     fi
     ;;
   pull_request)
@@ -20,11 +20,9 @@ case "$EVENT_NAME" in
       run_cleanup=true
     else
       run_pr_meta_checks=true
-      run_code_checks=true
     fi
     ;;
   workflow_dispatch)
-    run_code_checks=true
     case "$INPUT_MODE" in
       lint-fix)
         is_nightly=true
@@ -37,7 +35,8 @@ case "$EVENT_NAME" in
           echo "publish-tag mode requires an eligible tag context (e.g. refs/tags/v*)" >&2
           exit 1
         fi
-        run_release=true
+        run_code_checks=false
+        run_publisher=true
         ;;
       monthly-maintenance)
         is_monthly=true
@@ -45,7 +44,6 @@ case "$EVENT_NAME" in
     esac
     ;;
   schedule)
-    run_code_checks=true
     if [[ "${EVENT_SCHEDULE:-}" == "17 3 1 * *" ]]; then
       is_monthly=true
     fi
@@ -59,5 +57,6 @@ echo "run_code_checks=$run_code_checks" >> "$GITHUB_OUTPUT"
 echo "run_pr_meta_checks=$run_pr_meta_checks" >> "$GITHUB_OUTPUT"
 echo "run_cleanup=$run_cleanup" >> "$GITHUB_OUTPUT"
 echo "run_release=$run_release" >> "$GITHUB_OUTPUT"
+echo "run_publisher=$run_publisher" >> "$GITHUB_OUTPUT"
 echo "is_monthly=$is_monthly" >> "$GITHUB_OUTPUT"
 echo "is_nightly=$is_nightly" >> "$GITHUB_OUTPUT"

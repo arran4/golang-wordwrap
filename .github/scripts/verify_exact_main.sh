@@ -13,7 +13,7 @@ fi
 # Extract the branch name (e.g. main or master)
 BRANCH="${REF_NAME#refs/heads/}"
 
-git fetch --quiet origin "$BRANCH" 2>/dev/null || true
+git fetch --quiet origin "$BRANCH" 2>/dev/null
 MAIN_SHA=$(git rev-parse "origin/$BRANCH" 2>/dev/null || echo "")
 
 if [[ -z "$MAIN_SHA" ]]; then

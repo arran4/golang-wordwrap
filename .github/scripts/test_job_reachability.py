@@ -24,6 +24,12 @@ def test_job_reachability():
         print("FAIL: release-validation does not gracefully handle skipped code checks")
         sys.exit(1)
 
+    # 3. Goreleaser should check run_publisher, not run_release
+    gr_if = goreleaser.get('if', '')
+    if "needs.route.outputs.run_publisher == 'true'" not in gr_if:
+        print("FAIL: goreleaser does not run on run_publisher condition")
+        sys.exit(1)
+
     print("PASS: Job reachability tests")
 
 if __name__ == '__main__':
