@@ -610,13 +610,12 @@ jobs:
 
   prepare-next-version-pr:
     name: Prepare next development iteration PR
-    needs: [prepare-release-tag, goreleaser]
+    needs: [goreleaser]
     if: |
       always() &&
-      needs.prepare-release-tag.result == 'success' &&
       needs.goreleaser.result == 'success' &&
-      github.event_name == 'workflow_dispatch' &&
-      (startsWith(inputs.mode, 'release-') || inputs.mode == 'release-test')
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-tag'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -626,9 +625,16 @@ jobs:
       - name: Bump to next version and open PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          NEXT_VERSION="${{ needs.prepare-release-tag.outputs.next_version || '' }}"
+
+          # Compute NEXT_VERSION from the tag context
+          clean_tag="${REF_NAME#v}"
+          clean_tag="${clean_tag%%-*}"
+          IFS='.' read -r maj min pat <<< "$clean_tag"
+          NEXT_VERSION="${maj:-0}.${min:-0}.$(( ${pat:-0} + 1 ))-SNAPSHOT"
+
           [[ -z "$NEXT_VERSION" ]] && { echo "No next version calculated; skipping."; exit 0; }
 
           BRANCH="bump-version-$NEXT_VERSION"
@@ -636,8 +642,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
 
-          git add -A
-          if git diff --staged --quiet; then echo "No changes"; exit 0; fi
-          git commit -m "Prepare next development iteration $NEXT_VERSION"
+          # Use git-tag-inc logic to update version if needed, or simply make an empty commit to trigger the PR
+          # In this case we just make a dummy commit if there are no files to change for the iteration.
+          git commit --allow-empty -m "Prepare next development iteration $NEXT_VERSION"
           git push -u origin "$BRANCH"
           gh pr create --title "Prepare next development iteration $NEXT_VERSION" --body "Automated PR for next iteration." --base main --head "$BRANCH"
