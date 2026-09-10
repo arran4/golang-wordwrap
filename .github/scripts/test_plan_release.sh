@@ -10,7 +10,13 @@ export PATH="$(pwd)/mock_bin:$PATH"
 mkdir -p mock_bin
 cat << 'MOCK' > mock_bin/git-tag-inc
 #!/bin/bash
-echo "v1.2.4"
+# Remove dashes from the arguments so it doesn't look like double dashes or invalid characters
+if [[ -n "$3" ]]; then
+  echo "v9.9.9.print.version.only.$2.$3"
+else
+  echo "v9.9.9.print.version.only.$2"
+fi
+
 MOCK
 chmod +x mock_bin/git-tag-inc
 
@@ -39,11 +45,18 @@ function run_test() {
     echo "PASS: $name"
 }
 
-run_test "Valid override with v" "release-major" "v2.0.0" 0 "v2.0.0"
+run_test "Valid override bypasses git-tag-inc" "release-major" "v2.0.0" 0 "v2.0.0"
 run_test "Valid override without v" "release-patch" "3.1.2" 0 "v3.1.2"
 run_test "Malformed override" "release-minor" "not-a-version" 1 "Invalid tag format"
 run_test "Shell metacharacters rejection" "release-major" "v1.0.0;rm -rf /" 1 "Invalid tag format"
-run_test "Stable mode fallback to git-tag-inc" "release-minor" "" 0 "v1.2.4"
+
+run_test "Stable mode release-major" "release-major" "" 0 "v9.9.9.print.version.only.major"
+run_test "Stable mode release-minor" "release-minor" "" 0 "v9.9.9.print.version.only.minor"
+run_test "Stable mode release-patch" "release-patch" "" 0 "v9.9.9.print.version.only.patch"
+run_test "Prerelease mode release-rc" "release-rc" "" 0 "v9.9.9.print.version.only.patch.rc"
+run_test "Prerelease mode release-test" "release-test" "" 0 "v9.9.9.print.version.only.patch.test"
+run_test "Prerelease mode release-alpha" "release-alpha" "" 0 "v9.9.9.print.version.only.patch.alpha"
+
 run_test "Unsupported release mode" "invalid-mode" "" 1 "Unsupported release mode"
 
 rm -rf mock_bin
