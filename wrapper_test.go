@@ -282,8 +282,8 @@ func TestBlockAlignment(t *testing.T) {
 	}
 
 	// Test Center/Center
-	sw.horizontalPosition(HorizontalCenterBlock)
-	sw.verticalPosition(VerticalCenterBlock)
+	sw.SetHorizontalBlockPosition(HorizontalCenterBlock)
+	sw.SetVerticalBlockPosition(VerticalCenterBlock)
 	off = sw.calculateAlignmentOffset(lines, bounds)
 	// X: (200 - 100)/2 = 50
 	// Y: (200 - 40)/2 = 80
@@ -293,8 +293,8 @@ func TestBlockAlignment(t *testing.T) {
 	}
 
 	// Test Right/Bottom
-	sw.horizontalPosition(RightBlock)
-	sw.verticalPosition(BottomBlock)
+	sw.SetHorizontalBlockPosition(RightBlock)
+	sw.SetVerticalBlockPosition(BottomBlock)
 	off = sw.calculateAlignmentOffset(lines, bounds)
 	// X: 200 - 100 = 100
 	// Y: 200 - 40 = 160
