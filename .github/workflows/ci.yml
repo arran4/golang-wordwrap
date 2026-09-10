@@ -12,12 +12,9 @@ on:
       - 'v*.*.*'
       - 'v*.*.*-rc*'
       - 'v*.*.*-beta*'
-      - 'test-*'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, closed]
     branches: [main, master]
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       mode:
@@ -60,6 +57,16 @@ permissions:
   contents: read
 
 jobs:
+  routing-test:
+    name: Routing Logic Regression Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Routing Regression Test
+        run: python3 test_routing.py
+
   route:
     name: Route event
     runs-on: ubuntu-latest
@@ -152,7 +159,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.tag.outputs.release_tag }}
-      next_version: ${{ steps.tag.outputs.next_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -255,9 +261,6 @@ jobs:
           fi
 
           echo "release_tag=$next_tag" >> "$GITHUB_OUTPUT"
-          clean_tag="${next_tag#v}"; clean_tag="${clean_tag%%-*}"
-          IFS='.' read -r maj min pat <<< "$clean_tag"
-          echo "next_version=${maj:-0}.${min:-0}.$(( ${pat:-0} + 1 ))-SNAPSHOT" >> "$GITHUB_OUTPUT"
 
   discover:
     name: Discover capabilities and cost profile
@@ -608,42 +611,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ needs.release-context.outputs.release_tag }}
 
-  prepare-next-version-pr:
-    name: Prepare next development iteration PR
-    needs: [goreleaser]
-    if: |
-      always() &&
-      needs.goreleaser.result == 'success' &&
-      startsWith(github.ref, 'refs/tags/v') &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-tag'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Bump to next version and open PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-
-          # Compute NEXT_VERSION from the tag context
-          clean_tag="${REF_NAME#v}"
-          clean_tag="${clean_tag%%-*}"
-          IFS='.' read -r maj min pat <<< "$clean_tag"
-          NEXT_VERSION="${maj:-0}.${min:-0}.$(( ${pat:-0} + 1 ))-SNAPSHOT"
-
-          [[ -z "$NEXT_VERSION" ]] && { echo "No next version calculated; skipping."; exit 0; }
-
-          BRANCH="bump-version-$NEXT_VERSION"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-
-          # Use git-tag-inc logic to update version if needed, or simply make an empty commit to trigger the PR
-          # In this case we just make a dummy commit if there are no files to change for the iteration.
-          git commit --allow-empty -m "Prepare next development iteration $NEXT_VERSION"
-          git push -u origin "$BRANCH"
-          gh pr create --title "Prepare next development iteration $NEXT_VERSION" --body "Automated PR for next iteration." --base main --head "$BRANCH"
