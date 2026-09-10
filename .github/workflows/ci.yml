@@ -1,8 +1,6 @@
 # Agent rules for generation:
-# https://arran4.github.io/blog/post/2026/042-simplified-github-ci-release-safe/
-# Release safety details:
-# https://arran4.github.io/blog/post/2026/041-release-safe-single-owner-github-ci/
-# Built using these posts as reference/guidance.
+# Canonical Reference workflow. For generating/updating CI, refer to:
+# https://arran4.github.io/blog/post/2026/043-canonical-github-actions-ci-cd-super-reference/
 name: CI/CD
 
 on:
@@ -56,15 +54,10 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !startsWith(github.event.inputs.mode, 'release-') }}
 
 permissions:
-  contents: write
-  discussions: write
-  pull-requests: write
-  checks: write
-  packages: write
-  security-events: write
+  contents: read
 
 jobs:
   route:
@@ -95,7 +88,6 @@ jobs:
           run_pr_meta_checks=false
           run_cleanup=false
           run_release=false
-          run_post_release=false
           is_monthly=false
           is_nightly=false
 
@@ -113,9 +105,6 @@ jobs:
                 run_pr_meta_checks=true
                 run_code_checks=true
               fi
-              ;;
-            release)
-              run_post_release=true
               ;;
             workflow_dispatch)
               run_code_checks=true
@@ -153,7 +142,6 @@ jobs:
           echo "run_pr_meta_checks=$run_pr_meta_checks" >> "$GITHUB_OUTPUT"
           echo "run_cleanup=$run_cleanup" >> "$GITHUB_OUTPUT"
           echo "run_release=$run_release" >> "$GITHUB_OUTPUT"
-          echo "run_post_release=$run_post_release" >> "$GITHUB_OUTPUT"
           echo "is_monthly=$is_monthly" >> "$GITHUB_OUTPUT"
           echo "is_nightly=$is_nightly" >> "$GITHUB_OUTPUT"
 
@@ -328,6 +316,9 @@ jobs:
   gitleaks:
     name: Secret scan
     needs: [route, discover]
+    permissions:
+      contents: read
+      security-events: write
     if: ${{ needs.route.outputs.run_cleanup != 'true' && (needs.route.outputs.is_nightly == 'true' || needs.route.outputs.is_monthly == 'true') }}
     runs-on: ubuntu-latest
     steps:
@@ -389,6 +380,9 @@ jobs:
     needs: [route, discover]
     if: ${{ needs.discover.outputs.has_go == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'lint-fix' && inputs.allow_prs == true }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
@@ -416,6 +410,9 @@ jobs:
     needs: [route, discover]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'lint-fix' && inputs.allow_prs == true }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -468,6 +465,9 @@ jobs:
     needs: [route]
     if: ${{ needs.route.outputs.run_cleanup == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - env:
@@ -610,14 +610,17 @@ jobs:
 
   prepare-next-version-pr:
     name: Prepare next development iteration PR
-    needs: [prepare-release-tag, release-context]
+    needs: [prepare-release-tag, goreleaser]
     if: |
       always() &&
       needs.prepare-release-tag.result == 'success' &&
-      needs.release-context.result == 'success' &&
+      needs.goreleaser.result == 'success' &&
       github.event_name == 'workflow_dispatch' &&
       (startsWith(inputs.mode, 'release-') || inputs.mode == 'release-test')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - name: Bump to next version and open PR
