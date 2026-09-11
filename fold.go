@@ -23,8 +23,8 @@ type Line interface {
 	YValue() int
 	// PopSpaceFor will push box at the end, if there isn't enough width, it will make width space.
 	PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) (int, error)
-	// setStats Sets the page stats
-	setStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
+	// SetStats sets the page stats for the line, including line number and page offsets.
+	SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
 }
 
 // Folder is the literal line sizer & producer function
@@ -46,20 +46,20 @@ type SimpleLine struct {
 }
 
 // Ensures that the interface is filled
-var _ interface{ horizontalPosition(HorizontalLinePosition) } = (*SimpleLine)(nil)
+var _ interface{ SetHorizontalLinePosition(HorizontalLinePosition) } = (*SimpleLine)(nil)
 
-// horizontalPosition setter
-func (l *SimpleLine) horizontalPosition(hp HorizontalLinePosition) {
+// SetHorizontalLinePosition sets the horizontal alignment for the line.
+func (l *SimpleLine) SetHorizontalLinePosition(hp HorizontalLinePosition) {
 	l.horizontalLinePosition = hp
 }
 
-// horizontalPosition getter
-func (l *SimpleLine) getHorizontalLinePosition() HorizontalLinePosition {
+// GetHorizontalLinePosition gets the horizontal alignment for the line.
+func (l *SimpleLine) GetHorizontalLinePosition() HorizontalLinePosition {
 	return l.horizontalLinePosition
 }
 
-// setStats Sets the page stats
-func (l *SimpleLine) setStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int) {
+// SetStats sets the page stats for the line, including line number and page offsets.
+func (l *SimpleLine) SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int) {
 	l.stats = &LinePositionStats{
 		LineNumber:    lineNumber,
 		PageNumber:    pageNumber,
@@ -385,7 +385,27 @@ func (l *SimpleLine) Size() image.Rectangle {
 	}
 }
 
-// setPageBreakBox sets the page break box, this is called by an Option
-func (sf *SimpleFolder) setPageBreakBox(b Box) {
+// SetPageBreakBox sets the page break box, this is called by an Option
+func (sf *SimpleFolder) SetPageBreakBox(b Box) {
 	sf.pageBreakBox = b
+}
+
+// YOverflowMode returns the current vertical overflow policy applied during layout.
+func (sf *SimpleFolder) YOverflowMode() OverflowMode {
+	return sf.yOverflow
+}
+
+// GetPageBreakBox returns the Box currently configured to represent a page break.
+func (sf *SimpleFolder) GetPageBreakBox() Box {
+	return sf.pageBreakBox
+}
+
+// LastFontDrawer returns the font drawer state left at the end of content folding.
+func (sf *SimpleFolder) LastFontDrawer() *font.Drawer {
+	return sf.lastFontDrawer
+}
+
+// GetStats returns the positioning statistics (line, page, offset) assigned to this line.
+func (l *SimpleLine) GetStats() *LinePositionStats {
+	return l.stats
 }

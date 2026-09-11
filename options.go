@@ -134,8 +134,8 @@ func NewPageBreakBox(b Box, opts ...BoxerOption) WrapperOption {
 			o.ApplyBoxConfig(b)
 		}
 		switch f := f.(type) {
-		case interface{ setPageBreakBox(b Box) }:
-			f.setPageBreakBox(b)
+		case interface{ SetPageBreakBox(b Box) }:
+			f.SetPageBreakBox(b)
 		default:
 			log.Printf("can't apply")
 		}
@@ -273,8 +273,8 @@ func (hp HorizontalLinePosition) ApplyFoldConfig(f interface{}) {
 	if f, ok := f.(*SimpleFolder); ok {
 		f.lineOptions = append(f.lineOptions, func(line Line) {
 			switch line := line.(type) {
-			case interface{ horizontalPosition(HorizontalLinePosition) }:
-				line.horizontalPosition(hp)
+			case interface{ SetHorizontalLinePosition(HorizontalLinePosition) }:
+				line.SetHorizontalLinePosition(hp)
 			default:
 				log.Printf("can't apply")
 			}
@@ -300,8 +300,8 @@ var _ WrapperOption = LeftBLock
 // ApplyWrapperConfig Stores the position against the wrapper object
 func (hp HorizontalBlockPosition) ApplyWrapperConfig(wr interface{}) {
 	switch block := wr.(type) {
-	case interface{ horizontalPosition(HorizontalBlockPosition) }:
-		block.horizontalPosition(hp)
+	case interface{ SetHorizontalBlockPosition(HorizontalBlockPosition) }:
+		block.SetHorizontalBlockPosition(hp)
 	default:
 		log.Printf("can't apply")
 	}
@@ -325,8 +325,8 @@ var _ WrapperOption = TopBLock
 // ApplyWrapperConfig Stores the position against the wrapper object
 func (hp VerticalBlockPosition) ApplyWrapperConfig(wr interface{}) {
 	switch block := wr.(type) {
-	case interface{ verticalPosition(VerticalBlockPosition) }:
-		block.verticalPosition(hp)
+	case interface{ SetVerticalBlockPosition(VerticalBlockPosition) }:
+		block.SetVerticalBlockPosition(hp)
 	default:
 		log.Printf("can't apply")
 	}
