@@ -11,7 +11,6 @@ import (
 
 // Ensure that an external wrapper can access Line stats
 type statTrackingLine interface {
-	wordwrap.Line
 	SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
 	GetStats() *wordwrap.LinePositionStats
 }

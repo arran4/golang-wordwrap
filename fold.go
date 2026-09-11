@@ -23,7 +23,7 @@ type Line interface {
 	YValue() int
 	// PopSpaceFor will push box at the end, if there isn't enough width, it will make width space.
 	PopSpaceFor(sf *SimpleFolder, r image.Rectangle, box Box) (int, error)
-	// setStats Sets the page stats
+	// SetStats sets the page stats for the line, including line number and page offsets.
 	SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int)
 }
 
@@ -58,7 +58,7 @@ func (l *SimpleLine) GetHorizontalLinePosition() HorizontalLinePosition {
 	return l.horizontalLinePosition
 }
 
-// setStats Sets the page stats
+// SetStats sets the page stats for the line, including line number and page offsets.
 func (l *SimpleLine) SetStats(lineNumber int, pageNumber int, boxOffset int, currentPageBoxOffset int) {
 	l.stats = &LinePositionStats{
 		LineNumber:    lineNumber,

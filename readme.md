@@ -543,7 +543,7 @@ wordwrap.Align(wordwrap.AlignMiddle, myImage)
 
 `golang-wordwrap` exposes a subset of its internal layout state to allow external libraries (like higher-level rich-text or UI layout engines) to compose and extend its functionality without needing to fork the layout engine.
 
-The exposed state APIs on the `SimpleFolder`, `SimpleLine`, and `SimpleWrapper` types (and their corresponding capability interfaces) include:
+The exposed state APIs on the `SimpleFolder`, `SimpleLine`, and `SimpleWrapper` types (accessed via consumer-defined capability interfaces) include:
 *   `SetStats(lineNumber, pageNumber, boxOffset, currentPageBoxOffset int)`: Track line and page statistics.
 *   `GetHorizontalLinePosition() / SetHorizontalLinePosition(HorizontalLinePosition)`: Get or set line-level alignment.
 *   `SetHorizontalBlockPosition(HorizontalBlockPosition)`: Set wrapper-level horizontal alignment.
