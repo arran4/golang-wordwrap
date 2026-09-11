@@ -538,3 +538,18 @@ The `Align` helper simplifies vertical alignment within a line or container (Top
 ```go
 wordwrap.Align(wordwrap.AlignMiddle, myImage)
 ```
+
+## Layout State APIs for Extensions
+
+`golang-wordwrap` exposes a subset of its internal layout state to allow external libraries (like higher-level rich-text or UI layout engines) to compose and extend its functionality without needing to fork the layout engine.
+
+The exposed state APIs on the `SimpleFolder`, `SimpleLine`, and `SimpleWrapper` types (and their corresponding capability interfaces) include:
+*   `SetStats(lineNumber, pageNumber, boxOffset, currentPageBoxOffset int)`: Track line and page statistics.
+*   `GetHorizontalLinePosition() / SetHorizontalLinePosition(HorizontalLinePosition)`: Get or set line-level alignment.
+*   `SetHorizontalBlockPosition(HorizontalBlockPosition)`: Set wrapper-level horizontal alignment.
+*   `SetVerticalBlockPosition(VerticalBlockPosition)`: Set wrapper-level vertical alignment.
+*   `YOverflowMode() OverflowMode`: Access the vertical overflow policy.
+*   `GetPageBreakBox() / SetPageBreakBox(Box)`: Manage the active page-break indicator.
+*   `LastFontDrawer() *font.Drawer`: Access the font state left at the end of folding.
+
+Higher-level libraries such as `golang-rich-text` should compose these capabilities via interface type assertions (`l.(interface{ SetStats(...) })`) rather than duplicating `golang-wordwrap`'s internal text-folding logic.
