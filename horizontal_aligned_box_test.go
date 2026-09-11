@@ -128,7 +128,7 @@ func TestHorizontalAlignedIntegration(t *testing.T) {
 	folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 100, 100)}
 
 	line, err := folder.Next(0)
-	line.SetStats(0, 0, 0, 0)
+	line.setStats(0, 0, 0, 0)
 	if err != nil {
 		t.Fatalf("folder Next err: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestHorizontalAlignedMultiWord(t *testing.T) {
 			folder := &SimpleFolder{boxer: &manualBoxer{boxes: []Box{flb}}, container: image.Rect(0, 0, 1000, 100)}
 
 			line, err := folder.Next(0)
-			line.SetStats(0, 0, 0, 0)
+			line.setStats(0, 0, 0, 0)
 			if err != nil {
 				t.Fatalf("folder Next err: %v", err)
 			}
@@ -287,7 +287,7 @@ func TestHorizontalAlignedBox_HorizontalPositioningComposition(t *testing.T) {
 	sw := &SimpleWrapper{}
 	img := image.NewRGBA(image.Rect(0, 0, 100, 10)) // 100 width render target
 
-	line.(interface{ SetHorizontalLinePosition(HorizontalLinePosition) }).SetHorizontalLinePosition(HorizontalCenterLines)
+	line.(interface{ horizontalPosition(HorizontalLinePosition) }).horizontalPosition(HorizontalCenterLines)
 	err = sw.RenderLines(img, []Line{line}, img.Bounds().Min)
 	if err != nil {
 		t.Fatalf("RenderLines err: %v", err)

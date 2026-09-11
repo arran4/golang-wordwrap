@@ -166,7 +166,7 @@ func TestFillLineBoxDrawingGeometry(t *testing.T) {
 		t.Fatalf("Expected line, got nil")
 	}
 
-	line.SetStats(0, 0, 0, 0)
+	line.setStats(0, 0, 0, 0)
 
 	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
 
