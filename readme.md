@@ -553,3 +553,8 @@ The exposed state APIs on the `SimpleFolder`, `SimpleLine`, and `SimpleWrapper` 
 *   `LastFontDrawer() *font.Drawer`: Access the font state left at the end of folding.
 
 Higher-level libraries such as `golang-rich-text` should compose these capabilities via interface type assertions (`l.(interface{ SetStats(...) })`) rather than duplicating `golang-wordwrap`'s internal text-folding logic.
+
+## Contributing and engineering guidance
+
+Before changing public behaviour, tests, parsers or generation rules, see [repository-specific agent/contributor guidance](AGENTS.md). The applicable rationale is collected in [Suggested Coding Standards](https://arran4.github.io/blog/post/2026/055-suggested-coding-standards-for-repositories-and-agents/); this is selective guidance, not a blanket rewrite policy. The [standards adoption issue](https://github.com/arran4/golang-wordwrap/issues/64) tracks the required implementation/test audit separately from documentation.
+
