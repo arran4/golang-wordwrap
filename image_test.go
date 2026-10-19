@@ -50,30 +50,30 @@ func TestTiledImage(t *testing.T) {
 		// if x < 0: x += 10 => x = 5
 		// At: src.At(5 + 5, 5 + 5) = src.At(10, 10)
 
-		c := tiled.At(10, 10)
+		_ = tiled.At(10, 10)
 		// x = 10
 		// x = (10 - 5) % 10 = 5 % 10 = 5
 		// src.At(5 + 5) = src.At(10)
 
 		// Wait, 5,5 is at x=0
-		c = tiled.At(0, 0)
-		r, g, b, a := c.RGBA()
+		c := tiled.At(0, 0)
+		r, _, _, _ := c.RGBA()
 		if r == 65535 { // It's white at 5, 5? But mapped to 10,10.
 			t.Errorf("Expected non-white color at 0, 0, got %v", c)
 		}
 
 		// Map back to 5,5:
 		// x = 5. (5-5)%10 = 0. src.At(5+0) = src.At(5).
-		c = tiled.At(5, 5)
-		r, g, b, a = c.RGBA()
+		c = tiled.At(5, 5) // no-op but needs to be changed
+		r, g, b, a := c.RGBA()
 		if r != 65535 || g != 65535 || b != 65535 || a != 65535 {
 			t.Errorf("Expected white color at 5, 5, got %v", c)
 		}
 
 		// Mapped from -5, -5
 		c = tiled.At(-5, -5)
-		r, g, b, a = c.RGBA()
-		if r != 65535 || g != 65535 || b != 65535 || a != 65535 {
+		r2, g2, b2, a2 := c.RGBA()
+		if r2 != 65535 || g2 != 65535 || b2 != 65535 || a2 != 65535 {
 			t.Errorf("Expected white color at -5, -5, got %v", c)
 		}
 	})
