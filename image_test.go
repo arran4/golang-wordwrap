@@ -7,74 +7,100 @@ import (
 )
 
 func TestTiledImage(t *testing.T) {
-	t.Run("Zero width or height", func(t *testing.T) {
-		emptyImg := image.NewRGBA(image.Rect(0, 0, 0, 0))
-		tiled := Tiled(emptyImg)
+	t.Run("Zero width or height bounds", func(t *testing.T) {
+		testCases := []struct {
+			name string
+			rect image.Rectangle
+		}{
+			{"0x0", image.Rect(0, 0, 0, 0)},
+			{"0xN", image.Rect(0, 0, 0, 10)},
+			{"Nx0", image.Rect(0, 0, 10, 0)},
+		}
 
-		// This should not panic
-		c := tiled.At(0, 0)
-		_, _, _, a := c.RGBA()
-		if a != 0 {
-			t.Errorf("Expected transparent color, got %v", c)
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				emptyImg := image.NewRGBA(tc.rect)
+				tiled := Tiled(emptyImg)
+
+				// This should not panic
+				c := tiled.At(0, 0)
+				_, _, _, a := c.RGBA()
+				if a != 0 {
+					t.Errorf("Expected transparent color, got %v", c)
+				}
+			})
 		}
 	})
 
-	t.Run("Negative coordinates", func(t *testing.T) {
-		img := image.NewRGBA(image.Rect(0, 0, 10, 10))
-		img.Set(9, 9, color.White)
-
-		tiled := Tiled(img)
-
-		// -1, -1 should map to 9, 9
-		c := tiled.At(-1, -1)
-		r, g, b, a := c.RGBA()
-		if r != 65535 || g != 65535 || b != 65535 || a != 65535 {
-			t.Errorf("Expected white color at -1, -1, got %v", c)
-		}
-	})
-
-	t.Run("Non-zero source origin", func(t *testing.T) {
+	t.Run("Tiling behavior", func(t *testing.T) {
+		// Create a 10x10 image with origin at (5, 5)
+		// Bounds are Min: (5,5), Max: (15,15)
 		img := image.NewRGBA(image.Rect(5, 5, 15, 15))
-		img.Set(5, 5, color.White)
+
+		// Set distinct colors at known locations within the source image bounds
+		// (5,5) is the top-left of the source image
+		img.Set(5, 5, color.RGBA{255, 0, 0, 255}) // Red
+		// (14,14) is the bottom-right of the source image
+		img.Set(14, 14, color.RGBA{0, 255, 0, 255}) // Green
 
 		tiled := Tiled(img)
 
-		// 0, 0 should map to 5, 5 (since 0 % 10 = 0 + 5) - wait,
-		// (0 - 5) % 10 = -5 -> +10 = 5.
-		// b.Min.X + x = 5 + 5 = 10. Wait.
-
-		// Let's test the At function logic:
-		// x = 0
-		// w = 10
-		// x = (0 - 5) % 10 = -5
-		// if x < 0: x += 10 => x = 5
-		// At: src.At(5 + 5, 5 + 5) = src.At(10, 10)
-
-		_ = tiled.At(10, 10)
-		// x = 10
-		// x = (10 - 5) % 10 = 5 % 10 = 5
-		// src.At(5 + 5) = src.At(10)
-
-		// Wait, 5,5 is at x=0
-		c := tiled.At(0, 0)
-		r, _, _, _ := c.RGBA()
-		if r == 65535 { // It's white at 5, 5? But mapped to 10,10.
-			t.Errorf("Expected non-white color at 0, 0, got %v", c)
+		testCases := []struct {
+			name     string
+			query    image.Point
+			expected color.Color
+		}{
+			{
+				name:     "Within bounds top-left maps to top-left",
+				query:    image.Point{5, 5},
+				expected: color.RGBA{255, 0, 0, 255},
+			},
+			{
+				name:     "Within bounds bottom-right maps to bottom-right",
+				query:    image.Point{14, 14},
+				expected: color.RGBA{0, 255, 0, 255},
+			},
+			{
+				name: "Negative coordinates map to correct modulo",
+				// x = -5. (-5 - 5) % 10 = -10 % 10 = 0. + 5 = 5.
+				// y = -5. (-5 - 5) % 10 = -10 % 10 = 0. + 5 = 5.
+				query:    image.Point{-5, -5},
+				expected: color.RGBA{255, 0, 0, 255},
+			},
+			{
+				name: "Origin query (0,0) maps to center of image",
+				// x = 0. (0 - 5) % 10 = -5. -5 < 0 -> 5. 5 + 5 = 10.
+				// y = 0. (0 - 5) % 10 = -5. -5 < 0 -> 5. 5 + 5 = 10.
+				query:    image.Point{0, 0},
+				expected: color.RGBA{0, 0, 0, 0}, // Transparent, since (10,10) was not set.
+			},
+			{
+				name: "Query right before origin maps to bottom-right",
+				// x = 4. (4 - 5) % 10 = -1. -1 < 0 -> 9. 9 + 5 = 14.
+				// y = 4. (4 - 5) % 10 = -1. -1 < 0 -> 9. 9 + 5 = 14.
+				query:    image.Point{4, 4},
+				expected: color.RGBA{0, 255, 0, 255},
+			},
+			{
+				name: "Query far outside bounds",
+				// x = 25. (25 - 5) % 10 = 20 % 10 = 0. + 5 = 5.
+				// y = 25. (25 - 5) % 10 = 20 % 10 = 0. + 5 = 5.
+				query:    image.Point{25, 25},
+				expected: color.RGBA{255, 0, 0, 255},
+			},
 		}
 
-		// Map back to 5,5:
-		// x = 5. (5-5)%10 = 0. src.At(5+0) = src.At(5).
-		c = tiled.At(5, 5) // no-op but needs to be changed
-		r, g, b, a := c.RGBA()
-		if r != 65535 || g != 65535 || b != 65535 || a != 65535 {
-			t.Errorf("Expected white color at 5, 5, got %v", c)
-		}
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				got := tiled.At(tc.query.X, tc.query.Y)
 
-		// Mapped from -5, -5
-		c = tiled.At(-5, -5)
-		r2, g2, b2, a2 := c.RGBA()
-		if r2 != 65535 || g2 != 65535 || b2 != 65535 || a2 != 65535 {
-			t.Errorf("Expected white color at -5, -5, got %v", c)
+				gr, gg, gb, ga := got.RGBA()
+				er, eg, eb, ea := tc.expected.RGBA()
+
+				if gr != er || gg != eg || gb != eb || ga != ea {
+					t.Errorf("At(%d, %d) = %v; want %v", tc.query.X, tc.query.Y, got, tc.expected)
+				}
+			})
 		}
 	})
 }

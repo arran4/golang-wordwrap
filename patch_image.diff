@@ -1,0 +1,12 @@
+--- image.go
++++ image.go
+@@ -37,6 +37,9 @@
+ func (t *TiledImage) At(x, y int) color.Color {
+	b := t.Src.Bounds()
+	w, h := b.Dx(), b.Dy()
++	if w == 0 || h == 0 {
++		return color.Transparent
++	}
+	// Euclidean modulo
+	x = (x - b.Min.X) % w
+	if x < 0 {
